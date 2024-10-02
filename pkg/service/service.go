@@ -18,12 +18,15 @@ type Service interface {
 type service struct {
 	database db.Database
 	log      *zap.Logger
+
+	destination string
 }
 
-func NewService(database db.Database, log *zap.Logger) Service {
+func NewService(database db.Database, log *zap.Logger, destination string) Service {
 	return &service{
-		database: database,
-		log:      log,
+		database:    database,
+		log:         log,
+		destination: destination,
 	}
 }
 
@@ -46,7 +49,7 @@ func (s *service) StartProcessing(ctx context.Context) error {
 
 func (s *service) ProcessRequest(ctx context.Context, request models.DownloadQueueRequest) error {
 	// Run the "spotdl --sync {url}" command
-	cmd := exec.Command("spotdl", "--sync", request.SpotifyURL, "--cookie-file cookies.txt", "--bitrate disable")
+	cmd := exec.Command("spotdl", request.SpotifyURL, "--sync", "--cookie-file cookies.txt", "--bitrate disable", "--output "+s.destination)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

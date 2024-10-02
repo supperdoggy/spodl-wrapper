@@ -30,7 +30,7 @@ func main() {
 
 	log.Info("connected to database")
 
-	srv := service.NewService(db, log)
+	srv := service.NewService(db, log, cfg.Destination)
 
 	srv.StartProcessing(ctx)
 }
