@@ -11,7 +11,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type Service interface{}
+type Service interface {
+	StartProcessing(ctx context.Context) error
+}
 
 type service struct {
 	database db.Database
