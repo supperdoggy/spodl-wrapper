@@ -2,8 +2,10 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/DigitalIndependence/models"
+	"github.com/gofrs/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
@@ -12,6 +14,7 @@ import (
 
 type Database interface {
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
+	IndexMusicFile(ctx context.Context, file models.MusicFile) error
 }
 
 type db struct {
@@ -20,6 +23,7 @@ type db struct {
 
 	// Collections
 	downloadQueueRequestCollection *mongo.Collection
+	musicFilesCollection           *mongo.Collection
 }
 
 func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Database, error) {
@@ -33,6 +37,7 @@ func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Data
 		log:  log,
 
 		downloadQueueRequestCollection: conn.Database(dbname).Collection("download-queue-requests"),
+		musicFilesCollection:           conn.Database(dbname).Collection("music-files"),
 	}, nil
 }
 
@@ -55,4 +60,23 @@ func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueReque
 	}
 
 	return requests, nil
+}
+
+// IndexMusicFile indexes a music file in the database
+func (d *db) IndexMusicFile(ctx context.Context, file models.MusicFile) error {
+	file.ID = uuid.Must(uuid.NewV4()).String()
+	file.CreatedAt = time.Now().Unix()
+	_, err := d.musicFilesCollection.InsertOne(ctx, file)
+	return err
+}
+
+// MusicFileExist checks if a music file exists in the database
+func (d *db) MusicFileExist(ctx context.Context, title string) (bool, error) {
+	var count int64
+	count, err := d.musicFilesCollection.CountDocuments(ctx, bson.M{"title": title})
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }

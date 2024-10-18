@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/blob"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/config"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/service"
@@ -30,7 +31,12 @@ func main() {
 
 	log.Info("connected to database")
 
-	srv := service.NewService(db, log, cfg.Destination)
+	blobStorage, err := blob.NewBlobStorage(log, cfg.Blob)
+	if err != nil {
+		log.Fatal("failed to create blob storage", zap.Error(err))
+	}
+
+	srv := service.NewService(db, log, blobStorage, cfg.Destination, cfg.Blob.Enabled)
 
 	srv.StartProcessing(ctx)
 }

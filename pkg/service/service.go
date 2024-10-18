@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DigitalIndependence/models"
+	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/blob"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/db"
 	"go.uber.org/zap"
 )
@@ -17,19 +18,24 @@ type Service interface {
 
 type service struct {
 	database db.Database
+	s3       blob.BlobStorage
 	log      *zap.Logger
 
 	destination string
+	s3Enabled   bool
 }
 
-func NewService(database db.Database, log *zap.Logger, destination string) Service {
+func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, destination string, s3Enabled bool) Service {
 	return &service{
 		database:    database,
 		log:         log,
 		destination: destination,
+		s3:          s3,
+		s3Enabled:   s3Enabled,
 	}
 }
 
+// StartProcessing starts the processing of the requests
 func (s *service) StartProcessing(ctx context.Context) error {
 	for {
 		time.Sleep(1 * time.Minute)
@@ -44,9 +50,14 @@ func (s *service) StartProcessing(ctx context.Context) error {
 				s.log.Error("failed to process request", zap.Error(err), zap.Any("request", request))
 			}
 		}
+
+		if !s.s3Enabled {
+			continue
+		}
 	}
 }
 
+// ProcessRequest processes the request
 func (s *service) ProcessRequest(ctx context.Context, request models.DownloadQueueRequest) error {
 	// Run the "spotdl --sync {url}" command
 	cmd := exec.Command("spotdl", request.SpotifyURL, "--sync", "--cookie-file cookies.txt", "--bitrate disable", "--output "+s.destination)
