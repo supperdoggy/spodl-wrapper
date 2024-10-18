@@ -31,9 +31,12 @@ func main() {
 
 	log.Info("connected to database")
 
-	blobStorage, err := blob.NewBlobStorage(log, cfg.Blob)
-	if err != nil {
-		log.Fatal("failed to create blob storage", zap.Error(err))
+	blobStorage := blob.BlobStorage(nil)
+	if cfg.Blob.Enabled {
+		blobStorage, err = blob.NewBlobStorage(log, cfg.Blob)
+		if err != nil {
+			log.Fatal("failed to create blob storage", zap.Error(err))
+		}
 	}
 
 	srv := service.NewService(db, log, blobStorage, cfg.Destination, cfg.Blob.Enabled)

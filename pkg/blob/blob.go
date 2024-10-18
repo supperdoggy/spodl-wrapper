@@ -24,9 +24,6 @@ type blobStorage struct {
 }
 
 func NewBlobStorage(l *zap.Logger, cfg config.BlobStorageConfig) (BlobStorage, error) {
-	// key := "C58A976M583E23R1O00N"        // Access key pair. You can create access key pairs using the control panel or API.
-	// secret := os.Getenv("SPACES_SECRET") // Secret access key defined through an environment variable.
-
 	s3Config := &aws.Config{
 		Credentials: credentials.NewStaticCredentials(cfg.AccessKeyID, cfg.SecretAccess, ""), // Specifies your credentials.
 		// Endpoint:         aws.String("https://nyc3.digitaloceanspaces.com"),                       // Find your endpoint in the control panel, under Settings. Prepend "https://".
