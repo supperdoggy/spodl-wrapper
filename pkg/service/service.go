@@ -21,24 +21,26 @@ type service struct {
 	s3       blob.BlobStorage
 	log      *zap.Logger
 
-	destination string
-	s3Enabled   bool
+	destination    string
+	s3Enabled      bool
+	sleepInMinutes int
 }
 
-func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, destination string, s3Enabled bool) Service {
+func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, destination string, s3Enabled bool, sleepInMinutes int) Service {
 	return &service{
-		database:    database,
-		log:         log,
-		destination: destination,
-		s3:          s3,
-		s3Enabled:   s3Enabled,
+		database:       database,
+		log:            log,
+		destination:    destination,
+		s3:             s3,
+		s3Enabled:      s3Enabled,
+		sleepInMinutes: sleepInMinutes,
 	}
 }
 
 // StartProcessing starts the processing of the requests
 func (s *service) StartProcessing(ctx context.Context) error {
 	for {
-		time.Sleep(1 * time.Minute)
+		time.Sleep(time.Duration(s.sleepInMinutes) * time.Minute)
 		active, err := s.database.GetActiveRequests(ctx)
 		if err != nil {
 			s.log.Error("failed to get active requests", zap.Error(err))

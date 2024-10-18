@@ -39,7 +39,7 @@ func main() {
 		}
 	}
 
-	srv := service.NewService(db, log, blobStorage, cfg.Destination, cfg.Blob.Enabled)
+	srv := service.NewService(db, log, blobStorage, cfg.Destination, cfg.Blob.Enabled, cfg.SleepInMinutes)
 
 	srv.StartProcessing(ctx)
 }
