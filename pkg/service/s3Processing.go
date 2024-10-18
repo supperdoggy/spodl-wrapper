@@ -10,6 +10,53 @@ import (
 	"go.uber.org/zap"
 )
 
+// S3Processing processes the downloaded files
+func (s *service) S3Processing(ctx context.Context) {
+	s.log.Info("processed all active requests")
+
+	// get all downloaded files
+	files, err := s.GetDownloadedFilesPath(ctx)
+	if err != nil {
+		s.log.Error("failed to get downloaded files", zap.Error(err))
+		return
+	}
+
+	for _, file := range files {
+		data, metadata, err := s.GetFileData(ctx, file)
+		if err != nil {
+			s.log.Error("failed to get file data", zap.Error(err))
+			continue
+		}
+
+		// upload the file to the blob storage
+		path, err := s.s3.UploadFile(data, file)
+		if err != nil {
+			s.log.Error("failed to upload file to blob storage", zap.Error(err))
+			continue
+		}
+
+		// create a new music file
+		musicFile := models.MusicFile{
+			Title: file,
+			Path:  path,
+
+			MetaData: metadata.Raw(),
+		}
+
+		// index the music file in the database
+		if err := s.database.IndexMusicFile(ctx, musicFile); err != nil {
+			s.log.Error("failed to index music file", zap.Error(err))
+			continue
+		}
+
+		// delete the file
+		if err := s.DeleteDownloadedFiles(ctx, []string{file}); err != nil {
+			s.log.Error("failed to delete downloaded file", zap.Error(err))
+			continue
+		}
+	}
+}
+
 // GetDownloadedFilesPath returns the path of all the downloaded files
 func (s *service) GetDownloadedFilesPath(ctx context.Context) ([]string, error) {
 	// get all files in the destination folder
@@ -63,51 +110,4 @@ func (s *service) GetFileData(ctx context.Context, path string) ([]byte, tag.Met
 	}
 
 	return data, metadata, nil
-}
-
-// S3Processing processes the downloaded files
-func (s *service) S3Processing(ctx context.Context) {
-	s.log.Info("processed all active requests")
-
-	// get all downloaded files
-	files, err := s.GetDownloadedFilesPath(ctx)
-	if err != nil {
-		s.log.Error("failed to get downloaded files", zap.Error(err))
-		return
-	}
-
-	for _, file := range files {
-		data, metadata, err := s.GetFileData(ctx, file)
-		if err != nil {
-			s.log.Error("failed to get file data", zap.Error(err))
-			continue
-		}
-
-		// upload the file to the blob storage
-		path, err := s.s3.UploadFile(data, file)
-		if err != nil {
-			s.log.Error("failed to upload file to blob storage", zap.Error(err))
-			continue
-		}
-
-		// create a new music file
-		musicFile := models.MusicFile{
-			Title: file,
-			Path:  path,
-
-			MetaData: metadata.Raw(),
-		}
-
-		// index the music file in the database
-		if err := s.database.IndexMusicFile(ctx, musicFile); err != nil {
-			s.log.Error("failed to index music file", zap.Error(err))
-			continue
-		}
-
-		// delete the file
-		if err := s.DeleteDownloadedFiles(ctx, []string{file}); err != nil {
-			s.log.Error("failed to delete downloaded file", zap.Error(err))
-			continue
-		}
-	}
 }
