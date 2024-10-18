@@ -4,6 +4,7 @@ go 1.21.6
 
 require (
 	github.com/DigitalIndependence/models v0.0.0-20241014185508-63e62afdd015
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/kelseyhightower/envconfig v1.4.0
 	go.mongodb.org/mongo-driver v1.17.1
@@ -12,8 +13,6 @@ require (
 )
 
 require (
-	github.com/aws/aws-sdk-go v1.55.5 // indirect
-	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/DigitalIndependence/models"
-	"github.com/dhowden/tag"
 	"go.uber.org/zap"
 )
 
@@ -22,7 +21,7 @@ func (s *service) S3Processing(ctx context.Context) {
 	}
 
 	for _, file := range files {
-		data, metadata, err := s.GetFileData(ctx, file)
+		data, err := s.GetFileData(ctx, file)
 		if err != nil {
 			s.log.Error("failed to get file data", zap.Error(err))
 			continue
@@ -39,8 +38,6 @@ func (s *service) S3Processing(ctx context.Context) {
 		musicFile := models.MusicFile{
 			Title: file,
 			Path:  path,
-
-			MetaData: metadata.Raw(),
 		}
 
 		// index the music file in the database
@@ -92,22 +89,11 @@ func (s *service) DeleteDownloadedFiles(ctx context.Context, files []string) err
 }
 
 // GetFileData returns the data of the file at the path
-func (s *service) GetFileData(ctx context.Context, path string) ([]byte, tag.Metadata, error) {
-	file, err := os.OpenFile(path, os.O_RDONLY, 0644)
-	if err != nil {
-		return nil, nil, err
-	}
-
+func (s *service) GetFileData(ctx context.Context, path string) ([]byte, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// get file meta data
-	metadata, err := tag.ReadFrom(file)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return data, metadata, nil
+	return data, nil
 }
