@@ -21,9 +21,8 @@ type db struct {
 	conn *mongo.Client
 	log  *zap.Logger
 
-	// Collections
-	downloadQueueRequestCollection *mongo.Collection
-	musicFilesCollection           *mongo.Collection
+	url    string
+	dbname string
 }
 
 func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Database, error) {
@@ -36,15 +35,15 @@ func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Data
 		conn: conn,
 		log:  log,
 
-		downloadQueueRequestCollection: conn.Database(dbname).Collection("download-queue-requests"),
-		musicFilesCollection:           conn.Database(dbname).Collection("music-files"),
+		url:    url,
+		dbname: dbname,
 	}, nil
 }
 
 func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error) {
 	var requests []models.DownloadQueueRequest
 
-	cursor, err := d.downloadQueueRequestCollection.Find(ctx, bson.M{"active": true})
+	cursor, err := d.downloadQueueRequestCollection().Find(ctx, bson.M{"active": true})
 	if err != nil {
 		return nil, err
 	}
@@ -66,17 +65,50 @@ func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueReque
 func (d *db) IndexMusicFile(ctx context.Context, file models.MusicFile) error {
 	file.ID = uuid.Must(uuid.NewV4()).String()
 	file.CreatedAt = time.Now().Unix()
-	_, err := d.musicFilesCollection.InsertOne(ctx, file)
+	_, err := d.musicFilesCollection().InsertOne(ctx, file)
 	return err
 }
 
 // MusicFileExist checks if a music file exists in the database
 func (d *db) MusicFileExist(ctx context.Context, title string) (bool, error) {
 	var count int64
-	count, err := d.musicFilesCollection.CountDocuments(ctx, bson.M{"title": title})
+	count, err := d.musicFilesCollection().CountDocuments(ctx, bson.M{"title": title})
 	if err != nil {
 		return false, err
 	}
 
 	return count > 0, nil
+}
+
+func (d *db) reconnectToDB() error {
+	d.conn.Disconnect(context.Background())
+
+	conn, err := mongo.Connect(context.Background(), options.Client().ApplyURI(d.url))
+	if err != nil {
+		return err
+	}
+
+	d.conn = conn
+	return nil
+}
+
+// Collections
+
+// downloadQueueRequestCollection returns the download queue request collection
+func (d *db) downloadQueueRequestCollection() *mongo.Collection {
+	if err := d.conn.Ping(context.Background(), nil); err != nil {
+		d.log.Error("failed to ping database. reconnecting.", zap.Error(err))
+		d.reconnectToDB()
+	}
+	return d.conn.Database(d.dbname).Collection("download-queue-requests")
+}
+
+// musicFilesCollection returns the music files collection
+func (d *db) musicFilesCollection() *mongo.Collection {
+	if err := d.conn.Ping(context.Background(), nil); err != nil {
+		d.log.Error("failed to ping database. reconnecting.", zap.Error(err))
+		d.reconnectToDB()
+	}
+
+	return d.conn.Database(d.dbname).Collection("music-files")
 }
