@@ -52,6 +52,8 @@ func (s *service) StartProcessing(ctx context.Context) error {
 			continue
 		}
 
+		s.log.Info("processing active requests", zap.Any("requests", len(active)))
+
 		for _, request := range active {
 			defer func() {
 				if r := recover(); r != nil {
