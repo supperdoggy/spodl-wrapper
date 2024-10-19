@@ -46,8 +46,6 @@ func (s *service) StartProcessing(ctx context.Context) error {
 			}
 		}()
 
-		time.Sleep(time.Duration(s.sleepInMinutes) * time.Minute)
-
 		active, err := s.database.GetActiveRequests(ctx)
 		if err != nil {
 			s.log.Error("failed to get active requests", zap.Error(err))
@@ -55,6 +53,14 @@ func (s *service) StartProcessing(ctx context.Context) error {
 		}
 
 		for _, request := range active {
+			defer func() {
+				if r := recover(); r != nil {
+					s.log.Error("recovered from panic", zap.Any("panic", r))
+				}
+			}()
+
+			time.Sleep(time.Duration(s.sleepInMinutes) * time.Minute)
+
 			if err := s.ProcessRequest(ctx, request); err != nil {
 				s.log.Error("failed to process request", zap.Error(err), zap.Any("request", request))
 			}
