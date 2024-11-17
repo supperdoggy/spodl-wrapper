@@ -40,12 +40,6 @@ func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, dest
 // StartProcessing starts the processing of the requests
 func (s *service) StartProcessing(ctx context.Context) error {
 	for {
-		defer func() {
-			if r := recover(); r != nil {
-				s.log.Error("recovered from panic", zap.Any("panic", r))
-			}
-		}()
-
 		active, err := s.database.GetActiveRequests(ctx)
 		if err != nil {
 			s.log.Error("failed to get active requests", zap.Error(err))
@@ -55,11 +49,6 @@ func (s *service) StartProcessing(ctx context.Context) error {
 		s.log.Info("processing active requests", zap.Any("requests", len(active)))
 
 		for _, request := range active {
-			defer func() {
-				if r := recover(); r != nil {
-					s.log.Error("recovered from panic", zap.Any("panic", r))
-				}
-			}()
 
 			time.Sleep(time.Duration(s.sleepInMinutes) * time.Minute)
 
