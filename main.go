@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/blob"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/config"
@@ -11,11 +12,33 @@ import (
 )
 
 func main() {
+	log, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		log.Info("starting service")
+		run()
+
+		log.Info("service died, restarting...")
+		time.Sleep(5 * time.Second)
+	}
+
+}
+
+func run() {
 	var ctx = context.Background()
 	log, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("recovered from panic", zap.Any("panic", r))
+		}
+	}()
 
 	cfg, err := config.NewConfig()
 	if err != nil {
@@ -41,5 +64,7 @@ func main() {
 
 	srv := service.NewService(db, log, blobStorage, cfg.Destination, cfg.Blob.Enabled, cfg.SleepInMinutes)
 
-	srv.StartProcessing(ctx)
+	if err := srv.StartProcessing(ctx); err != nil {
+		log.Fatal("failed to start processing", zap.Error(err))
+	}
 }
