@@ -39,40 +39,34 @@ func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, dest
 
 // StartProcessing starts the processing of the requests
 func (s *service) StartProcessing(ctx context.Context) error {
-	for {
-		active, err := s.database.GetActiveRequests(ctx)
-		if err != nil {
-			s.log.Error("failed to get active requests", zap.Error(err))
-			continue
+	active, err := s.database.GetActiveRequests(ctx)
+	if err != nil {
+		s.log.Error("failed to get active requests", zap.Error(err))
+		return err
+	}
+
+	s.log.Info("processing active requests", zap.Any("requests", len(active)))
+
+	for _, request := range active {
+		time.Sleep(time.Duration(s.sleepInMinutes) * time.Minute)
+
+		if err := s.ProcessRequest(ctx, request); err != nil {
+			s.log.Error("failed to process request", zap.Error(err), zap.Any("request", request))
 		}
 
-		s.log.Info("processing active requests", zap.Any("requests", len(active)))
-
-		for _, request := range active {
-
-			time.Sleep(time.Duration(s.sleepInMinutes) * time.Minute)
-
-			if err := s.ProcessRequest(ctx, request); err != nil {
-				s.log.Error("failed to process request", zap.Error(err), zap.Any("request", request))
-			}
-
-			if request.SyncCount > 3 {
-				request.Active = false
-			} else {
-				request.SyncCount++
-			}
-
-			s.log.Info("updated request status", zap.Any("request", request))
-
-			if err := s.database.UpdateActiveRequest(ctx, request); err != nil {
-				s.log.Error("failed to update request", zap.Error(err), zap.Any("request", request))
-			}
+		if request.SyncCount > 3 {
+			request.Active = false
+		} else {
+			request.SyncCount++
 		}
 
-		if !s.s3Enabled {
-			continue
+		s.log.Info("updated request status", zap.Any("request", request))
+
+		if err := s.database.UpdateActiveRequest(ctx, request); err != nil {
+			s.log.Error("failed to update request", zap.Error(err), zap.Any("request", request))
 		}
 	}
+	return nil
 }
 
 // ProcessRequest processes the request
