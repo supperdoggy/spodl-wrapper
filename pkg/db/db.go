@@ -14,6 +14,7 @@ import (
 
 type Database interface {
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
+	UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error
 	IndexMusicFile(ctx context.Context, file models.MusicFile) error
 }
 
@@ -59,6 +60,11 @@ func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueReque
 	}
 
 	return requests, nil
+}
+
+func (d *db) UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error {
+	_, err := d.downloadQueueRequestCollection().UpdateOne(ctx, bson.M{"id": request.ID}, bson.M{"$set": request})
+	return err
 }
 
 // IndexMusicFile indexes a music file in the database

@@ -55,6 +55,18 @@ func (s *service) StartProcessing(ctx context.Context) error {
 			if err := s.ProcessRequest(ctx, request); err != nil {
 				s.log.Error("failed to process request", zap.Error(err), zap.Any("request", request))
 			}
+
+			if request.SyncCount > 3 {
+				request.Active = false
+			} else {
+				request.SyncCount++
+			}
+
+			s.log.Info("updated request status", zap.Any("request", request))
+
+			if err := s.database.UpdateActiveRequest(ctx, request); err != nil {
+				s.log.Error("failed to update request", zap.Error(err), zap.Any("request", request))
+			}
 		}
 
 		if !s.s3Enabled {
