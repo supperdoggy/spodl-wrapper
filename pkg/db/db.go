@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/DigitalIndependence/models"
@@ -63,11 +64,18 @@ func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueReque
 }
 
 func (d *db) UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error {
-	_, err := d.downloadQueueRequestCollection().UpdateOne(ctx, bson.M{"id": request.ID}, bson.M{"$set": bson.M{
+	info, err := d.downloadQueueRequestCollection().UpdateOne(ctx, bson.M{"_id": request.ID}, bson.M{"$set": bson.M{
 		"active":     request.Active,
 		"sync_count": request.SyncCount,
 	}})
-	return err
+	if err != nil {
+		return err
+	}
+
+	if info.MatchedCount == 0 {
+		return errors.New("not found")
+	}
+	return nil
 }
 
 // IndexMusicFile indexes a music file in the database

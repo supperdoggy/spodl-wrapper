@@ -54,7 +54,7 @@ func (s *service) StartProcessing(ctx context.Context) error {
 			s.log.Error("failed to process request", zap.Error(err), zap.Any("request", request))
 		}
 
-		if request.SyncCount > 3 {
+		if request.SyncCount >= 3 {
 			request.Active = false
 		} else {
 			request.SyncCount++

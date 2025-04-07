@@ -12,18 +12,8 @@ import (
 )
 
 func main() {
-	log, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-
-	for {
-		log.Info("starting service")
-		run()
-
-		log.Info("service died, restarting...")
-		time.Sleep(5 * time.Second)
-	}
+	run()
+	time.Sleep(5 * time.Second)
 
 }
 
@@ -33,12 +23,6 @@ func run() {
 	if err != nil {
 		panic(err)
 	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error("recovered from panic", zap.Any("panic", r))
-		}
-	}()
 
 	cfg, err := config.NewConfig()
 	if err != nil {
@@ -67,4 +51,11 @@ func run() {
 	if err := srv.StartProcessing(ctx); err != nil {
 		log.Fatal("failed to start processing", zap.Error(err))
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("recovered from panic", zap.Any("panic", r))
+			run()
+		}
+	}()
 }
