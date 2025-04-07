@@ -63,7 +63,10 @@ func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueReque
 }
 
 func (d *db) UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error {
-	_, err := d.downloadQueueRequestCollection().UpdateOne(ctx, bson.M{"id": request.ID}, bson.M{"$set": request})
+	_, err := d.downloadQueueRequestCollection().UpdateOne(ctx, bson.M{"id": request.ID}, bson.M{"$set": bson.M{
+		"active":     request.Active,
+		"sync_count": request.SyncCount,
+	}})
 	return err
 }
 
