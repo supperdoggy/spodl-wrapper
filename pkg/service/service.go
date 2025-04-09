@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"time"
@@ -50,14 +51,20 @@ func (s *service) StartProcessing(ctx context.Context) error {
 	for _, request := range active {
 		time.Sleep(time.Duration(s.sleepInMinutes) * time.Minute)
 
+		errored := false
 		if err := s.ProcessRequest(ctx, request); err != nil {
 			s.log.Error("failed to process request", zap.Error(err), zap.Any("request", request))
+			errored = true
 		}
 
-		if request.SyncCount >= 3 {
-			request.Active = false
+		if !errored {
+			if request.SyncCount >= 3 {
+				request.Active = false
+			} else {
+				request.SyncCount++
+			}
 		} else {
-			request.SyncCount++
+			s.log.Warn("request processing encountered an error", zap.Any("request", request))
 		}
 
 		s.log.Info("updated request status", zap.Any("request", request))
@@ -66,15 +73,19 @@ func (s *service) StartProcessing(ctx context.Context) error {
 			s.log.Error("failed to update request", zap.Error(err), zap.Any("request", request))
 		}
 	}
+
+	s.log.Info("completed processing of active requests")
 	return nil
 }
 
 // ProcessRequest processes the request
 func (s *service) ProcessRequest(ctx context.Context, request models.DownloadQueueRequest) error {
-	defer func() {
+	defer func() error {
 		if r := recover(); r != nil {
 			s.log.Error("recovered from panic", zap.Any("panic", r))
+			return errors.New("recovered from panic")
 		}
+		return nil
 	}()
 
 	// Run the "spotdl --sync {url}" command
