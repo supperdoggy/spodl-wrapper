@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"sort"
 	"time"
 
 	"github.com/DigitalIndependence/models"
@@ -48,6 +49,19 @@ func (s *service) StartProcessing(ctx context.Context) error {
 
 	s.log.Info("processing active requests", zap.Any("requests", len(active)))
 
+	// sort active by errored so errored requests are processed last
+	sort.Slice(active, func(i, j int) bool {
+		if active[i].Errored && !active[j].Errored {
+			return false
+		}
+		if !active[i].Errored && active[j].Errored {
+			return true
+		}
+		return active[i].CreatedAt < active[j].CreatedAt
+	})
+
+	s.log.Info("sorted active requests", zap.Any("requests", active))
+
 	for _, request := range active {
 		time.Sleep(time.Duration(s.sleepInMinutes) * time.Minute)
 
@@ -64,6 +78,8 @@ func (s *service) StartProcessing(ctx context.Context) error {
 				request.SyncCount++
 			}
 		} else {
+			request.Errored = true
+			request.RetryCount++
 			s.log.Warn("request processing encountered an error", zap.Any("request", request))
 		}
 

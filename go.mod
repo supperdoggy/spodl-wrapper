@@ -2,6 +2,8 @@ module github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper
 
 go 1.21.6
 
+replace github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8 => /Users/maks/go/src/github.com/supperdoggy/SmartHomeServer/music-services/models 
+
 require (
 	github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8
 	github.com/aws/aws-sdk-go v1.55.5
