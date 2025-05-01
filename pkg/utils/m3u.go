@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,7 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
+
+	"github.com/zmb3/spotify/v2"
 )
 
 type PlaylistTrack struct {
@@ -44,7 +46,7 @@ type PlaylistTrack struct {
 	AlbumType     string   `json:"album_type"`
 }
 
-func GetPlaylistData(playlistURL string) (string, []string, error) {
+func GetPlaylistData(playlistURL string, spotifyClient *spotify.Client) (string, []string, error) {
 	// Create a temporary file to save the playlist with spotdl
 	tempFile, err := ioutil.TempFile("", "playlist-*.spotdl")
 	if err != nil {
@@ -52,6 +54,8 @@ func GetPlaylistData(playlistURL string) (string, []string, error) {
 		return "", nil, err
 	}
 	defer os.Remove(tempFile.Name()) // Clean up temporary file after execution
+
+	// TODO migrate fully to spotify api and remove spotdl here
 
 	// Run spotdl to save the playlist to the temporary file
 	cmd := exec.Command("spotdl", "save", playlistURL, "--save-file", tempFile.Name())
@@ -77,7 +81,14 @@ func GetPlaylistData(playlistURL string) (string, []string, error) {
 
 	// Extract the list name from the playlist URL
 
-	playlistName := time.Now().Format("2006-01-02_15-04-05") // Use current time as playlist name
+	playlistID := strings.Split(strings.Split(playlistURL, "/")[4], "?")[0]
+	playlist, err := spotifyClient.GetPlaylist(context.Background(), spotify.ID(playlistID))
+	if err != nil {
+		fmt.Println("Error getting playlist:", err)
+		return "", nil, err
+	}
+
+	playlistName := playlist.Name
 
 	// Create a list of "Artist - Song" strings
 	var songList []string

@@ -8,7 +8,10 @@ import (
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/config"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/service"
+	"github.com/zmb3/spotify/v2"
+	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"go.uber.org/zap"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 func main() {
@@ -31,6 +34,20 @@ func run() {
 
 	log.Info("loaded config", zap.Any("config", cfg))
 
+	spotifyConfig := clientcredentials.Config{
+		ClientID:     cfg.Spotify.ClientID,
+		ClientSecret: cfg.Spotify.ClientSecret,
+		TokenURL:     spotifyauth.TokenURL,
+	}
+
+	token, err := spotifyConfig.Token(ctx)
+	if err != nil {
+		log.Fatal("failed to get token", zap.Error(err))
+	}
+
+	httpClient := spotifyauth.New().Client(context.Background(), token)
+	spotifyClient := spotify.New(httpClient)
+
 	db, err := db.NewDatabase(ctx, log, cfg.DatabaseURL, cfg.DatabaseName)
 	if err != nil {
 		log.Fatal("failed to connect to database", zap.Error(err))
@@ -46,7 +63,7 @@ func run() {
 		}
 	}
 
-	srv := service.NewService(db, log, blobStorage, cfg.Destination, cfg.MusicLibraryPath, cfg.Blob.Enabled, cfg.SleepInMinutes)
+	srv := service.NewService(db, log, blobStorage, spotifyClient, cfg.Destination, cfg.MusicLibraryPath, cfg.Blob.Enabled, cfg.SleepInMinutes)
 
 	if err := srv.StartProcessing(ctx); err != nil {
 		log.Fatal("failed to start processing", zap.Error(err))

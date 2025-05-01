@@ -12,6 +12,7 @@ import (
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/blob"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/utils"
+	"github.com/zmb3/spotify/v2"
 	"go.uber.org/zap"
 )
 
@@ -20,9 +21,10 @@ type Service interface {
 }
 
 type service struct {
-	database db.Database
-	s3       blob.BlobStorage
-	log      *zap.Logger
+	database      db.Database
+	s3            blob.BlobStorage
+	log           *zap.Logger
+	spotifyClient *spotify.Client
 
 	destination    string
 	s3Enabled      bool
@@ -30,10 +32,11 @@ type service struct {
 	libraryPath    string
 }
 
-func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, destination, libraryPath string, s3Enabled bool, sleepInMinutes int) Service {
+func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, spotifyClient *spotify.Client, destination, libraryPath string, s3Enabled bool, sleepInMinutes int) Service {
 	return &service{
 		database:       database,
 		log:            log,
+		spotifyClient:  spotifyClient,
 		destination:    destination,
 		s3:             s3,
 		s3Enabled:      s3Enabled,
@@ -154,7 +157,7 @@ func (s *service) ProcessPlaylistRequest(ctx context.Context) error {
 }
 
 func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistRequest) error {
-	playlistName, songList, err := utils.GetPlaylistData(playlist.SpotifyURL)
+	playlistName, songList, err := utils.GetPlaylistData(playlist.SpotifyURL, s.spotifyClient)
 	if err != nil {
 		s.log.Error("failed to get playlist data", zap.Error(err))
 		return err

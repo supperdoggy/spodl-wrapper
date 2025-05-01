@@ -12,8 +12,14 @@ type BlobStorageConfig struct {
 	Endpoint     string `envconfig:"S3_ENDPOINT"`
 }
 
+type SpotifyConfig struct {
+	ClientID     string `envconfig:"SPOTIFY_CLIENT_ID" required:"true"`
+	ClientSecret string `envconfig:"SPOTIFY_CLIENT_SECRET" required:"true"`
+}
+
 type Config struct {
-	Blob BlobStorageConfig
+	Blob    BlobStorageConfig
+	Spotify SpotifyConfig
 
 	DatabaseURL      string `envconfig:"DATABASE_URL" required:"true"`
 	DatabaseName     string `envconfig:"DATABASE_NAME" required:"true"`
