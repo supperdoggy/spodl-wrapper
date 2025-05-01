@@ -17,6 +17,8 @@ type Database interface {
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
 	UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error
 	IndexMusicFile(ctx context.Context, file models.MusicFile) error
+	GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error)
+	UpdatePlaylistRequest(ctx context.Context, request models.PlaylistRequest) error
 }
 
 type db struct {
@@ -61,6 +63,36 @@ func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueReque
 	}
 
 	return requests, nil
+}
+
+func (d *db) GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error) {
+	var requests []models.PlaylistRequest
+	cursor, err := d.playlistsCollection().Find(ctx, bson.M{"active": true})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		var request models.PlaylistRequest
+		if err := cursor.Decode(&request); err != nil {
+			return nil, err
+		}
+
+		requests = append(requests, request)
+	}
+	return requests, nil
+}
+
+func (d *db) UpdatePlaylistRequest(ctx context.Context, request models.PlaylistRequest) error {
+	info, err := d.playlistsCollection().UpdateOne(ctx, bson.M{"_id": request.ID}, bson.M{"$set": bson.M{
+		"active": request.Active,
+	}})
+
+	if info.MatchedCount == 0 {
+		return errors.New("not found")
+	}
+
+	return err
 }
 
 func (d *db) UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error {
@@ -120,6 +152,15 @@ func (d *db) downloadQueueRequestCollection() *mongo.Collection {
 		d.reconnectToDB()
 	}
 	return d.conn.Database(d.dbname).Collection("download-queue-requests")
+}
+
+func (d *db) playlistsCollection() *mongo.Collection {
+	if err := d.conn.Ping(context.Background(), nil); err != nil {
+		d.log.Error("failed to ping database. reconnecting.", zap.Error(err))
+		d.reconnectToDB()
+	}
+
+	return d.conn.Database(d.dbname).Collection("playlist-requests")
 }
 
 // musicFilesCollection returns the music files collection

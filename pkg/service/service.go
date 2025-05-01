@@ -11,6 +11,7 @@ import (
 	"github.com/DigitalIndependence/models"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/blob"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/db"
+	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/utils"
 	"go.uber.org/zap"
 )
 
@@ -41,6 +42,14 @@ func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, dest
 
 // StartProcessing starts the processing of the requests
 func (s *service) StartProcessing(ctx context.Context) error {
+	downloadError := s.ProcessDownloadRequest(ctx)
+
+	playlistError := s.ProcessPlaylistRequest(ctx)
+
+	return errors.Join(downloadError, playlistError)
+}
+
+func (s *service) ProcessDownloadRequest(ctx context.Context) error {
 	active, err := s.database.GetActiveRequests(ctx)
 	if err != nil {
 		s.log.Error("failed to get active requests", zap.Error(err))
@@ -111,6 +120,47 @@ func (s *service) ProcessRequest(ctx context.Context, request models.DownloadQue
 
 	// Execute the command
 	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) ProcessPlaylistRequest(ctx context.Context) error {
+	playlists, err := s.database.GetActivePlaylists(ctx)
+	if err != nil {
+		s.log.Error("failed to get active playlists", zap.Error(err))
+		return err
+	}
+
+	s.log.Info("processing active playlists", zap.Any("playlists", len(playlists)))
+
+	for _, playlist := range playlists {
+		if err := s.ProcessPlaylist(ctx, playlist); err != nil {
+			s.log.Error("failed to process playlist", zap.Error(err), zap.Any("playlist", playlist))
+		} else {
+			playlist.Active = false
+		}
+		if err := s.database.UpdatePlaylistRequest(ctx, playlist); err != nil {
+			s.log.Error("failed to update playlist", zap.Error(err), zap.Any("playlist", playlist))
+		}
+	}
+
+	s.log.Info("completed processing of active playlists")
+	return nil
+}
+
+func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistRequest) error {
+	playlistName, songList, err := utils.GetPlaylistData(playlist.SpotifyURL)
+	if err != nil {
+		s.log.Error("failed to get playlist data", zap.Error(err))
+		return err
+	}
+
+	outputPath := s.destination + "/Playlists/" + playlistName + ".m3u"
+
+	if err := utils.CreateM3UPlaylist(songList, s.destination, outputPath); err != nil {
+		s.log.Error("failed to create m3u playlist", zap.Error(err))
 		return err
 	}
 
