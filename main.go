@@ -46,7 +46,7 @@ func run() {
 		}
 	}
 
-	srv := service.NewService(db, log, blobStorage, cfg.Destination, cfg.Blob.Enabled, cfg.SleepInMinutes)
+	srv := service.NewService(db, log, blobStorage, cfg.Destination, cfg.MusicLibraryPath, cfg.Blob.Enabled, cfg.SleepInMinutes)
 
 	if err := srv.StartProcessing(ctx); err != nil {
 		log.Fatal("failed to start processing", zap.Error(err))

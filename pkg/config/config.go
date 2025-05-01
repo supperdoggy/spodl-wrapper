@@ -15,10 +15,11 @@ type BlobStorageConfig struct {
 type Config struct {
 	Blob BlobStorageConfig
 
-	DatabaseURL    string `envconfig:"DATABASE_URL" required:"true"`
-	DatabaseName   string `envconfig:"DATABASE_NAME" required:"true"`
-	Destination    string `envconfig:"DESTINATION" required:"true"`
-	SleepInMinutes int    `envconfig:"SLEEP_IN_MINUTES" required:"true"`
+	DatabaseURL      string `envconfig:"DATABASE_URL" required:"true"`
+	DatabaseName     string `envconfig:"DATABASE_NAME" required:"true"`
+	Destination      string `envconfig:"DESTINATION" required:"true"`
+	MusicLibraryPath string `envconfig:"MUSIC_LIBRARY_PATH" required:"true"`
+	SleepInMinutes   int    `envconfig:"SLEEP_IN_MINUTES" required:"true"`
 }
 
 func NewConfig() (*Config, error) {

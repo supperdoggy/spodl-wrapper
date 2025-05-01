@@ -98,6 +98,8 @@ func GetPlaylistData(playlistURL string) (string, []string, error) {
 func CreateM3UPlaylist(songList []string, musicRoot, outputPath string) error {
 	var matchedPaths []string
 
+	matchedSongs := make(map[string]bool)
+
 	err := filepath.Walk(musicRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
@@ -114,10 +116,19 @@ func CreateM3UPlaylist(songList []string, musicRoot, outputPath string) error {
 			title := strings.ToLower(strings.TrimSpace(parts[1]))
 
 			if strings.Contains(lowerPath, artist) && strings.Contains(lowerPath, title) && !strings.HasSuffix(lowerPath, ".lrc") {
-				// if will not work then return absolute path
+
+				if _, ok := matchedSongs[song]; ok {
+					continue // Skip if already matched
+				}
+
 				relPath, _ := filepath.Rel(filepath.Dir(outputPath), path)
-				absPath, _ := filepath.Abs(relPath)
-				matchedPaths = append(matchedPaths, absPath)
+
+				// TODO FIX IT LATER
+				relPath = strings.Replace(relPath, "../../", "", 1)
+				relPath = strings.ReplaceAll(relPath, "..", "Job-downloaded")
+				relPath = "/music/" + relPath
+				matchedPaths = append(matchedPaths, relPath)
+				matchedSongs[song] = true
 				break // prevent duplicate matches
 			}
 		}

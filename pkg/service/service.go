@@ -27,9 +27,10 @@ type service struct {
 	destination    string
 	s3Enabled      bool
 	sleepInMinutes int
+	libraryPath    string
 }
 
-func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, destination string, s3Enabled bool, sleepInMinutes int) Service {
+func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, destination, libraryPath string, s3Enabled bool, sleepInMinutes int) Service {
 	return &service{
 		database:       database,
 		log:            log,
@@ -37,6 +38,7 @@ func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, dest
 		s3:             s3,
 		s3Enabled:      s3Enabled,
 		sleepInMinutes: sleepInMinutes,
+		libraryPath:    libraryPath,
 	}
 }
 
@@ -160,7 +162,7 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 
 	outputPath := s.destination + "/Playlists/" + playlistName + ".m3u"
 
-	if err := utils.CreateM3UPlaylist(songList, s.destination, outputPath); err != nil {
+	if err := utils.CreateM3UPlaylist(songList, s.libraryPath, outputPath); err != nil {
 		s.log.Error("failed to create m3u playlist", zap.Error(err))
 		return err
 	}
