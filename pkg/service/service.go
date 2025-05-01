@@ -141,6 +141,7 @@ func (s *service) ProcessPlaylistRequest(ctx context.Context) error {
 		} else {
 			playlist.Active = false
 		}
+
 		if err := s.database.UpdatePlaylistRequest(ctx, playlist); err != nil {
 			s.log.Error("failed to update playlist", zap.Error(err), zap.Any("playlist", playlist))
 		}
