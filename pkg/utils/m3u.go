@@ -2,11 +2,8 @@ package utils
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -47,37 +44,6 @@ type PlaylistTrack struct {
 }
 
 func GetPlaylistData(playlistURL string, spotifyClient *spotify.Client) (string, []string, error) {
-	// Create a temporary file to save the playlist with spotdl
-	tempFile, err := ioutil.TempFile("", "playlist-*.spotdl")
-	if err != nil {
-		fmt.Println("Error creating temporary file:", err)
-		return "", nil, err
-	}
-	defer os.Remove(tempFile.Name()) // Clean up temporary file after execution
-
-	// TODO migrate fully to spotify api and remove spotdl here
-
-	// Run spotdl to save the playlist to the temporary file
-	cmd := exec.Command("spotdl", "save", playlistURL, "--save-file", tempFile.Name())
-	err = cmd.Run()
-	if err != nil {
-		fmt.Println("Error running spotdl:", err)
-		return "", nil, err
-	}
-
-	// Read the JSON data from the saved file
-	file, err := ioutil.ReadFile(tempFile.Name())
-	if err != nil {
-		fmt.Println("Error reading file:", err)
-		return "", nil, err
-	}
-
-	var songs []PlaylistTrack
-	err = json.Unmarshal(file, &songs)
-	if err != nil {
-		fmt.Println("Error parsing JSON:", err)
-		return "", nil, err
-	}
 
 	// Extract the list name from the playlist URL
 
@@ -90,14 +56,35 @@ func GetPlaylistData(playlistURL string, spotifyClient *spotify.Client) (string,
 
 	playlistName := playlist.Name
 
+	var playlistItems []spotify.PlaylistItem
+	itemsPage, err := spotifyClient.GetPlaylistItems(context.Background(), spotify.ID(playlistID))
+	if err != nil {
+		fmt.Println("Error getting playlist items:", err)
+		return "", nil, err
+	}
+
+	if itemsPage.Total > spotify.Numeric(len(itemsPage.Items)) {
+		total := int(itemsPage.Total)
+		for i := 0; i < total; i += int(itemsPage.Limit) {
+			items, err := spotifyClient.GetPlaylistItems(context.Background(), spotify.ID(playlistID), spotify.Limit(int(itemsPage.Limit)), spotify.Offset(i))
+			if err != nil {
+				fmt.Println("Error getting playlist items:", err)
+				return "", nil, err
+			}
+			playlistItems = append(playlistItems, items.Items...)
+		}
+	} else {
+		playlistItems = itemsPage.Items
+	}
+
 	// Create a list of "Artist - Song" strings
 	var songList []string
-	for _, song := range songs {
-		artist := strings.Join(song.Artists, ", ")
-		if artist == "" {
-			artist = song.Artist
+	for _, song := range playlistItems {
+		artistNames := make([]string, len(song.Track.Track.Artists))
+		for i, artist := range song.Track.Track.Artists {
+			artistNames[i] = artist.Name
 		}
-		songList = append(songList, fmt.Sprintf("%s - %s", artist, song.Name))
+		songList = append(songList, fmt.Sprintf("%s - %s", strings.Join(artistNames, ", "), song.Track.Track.Name))
 	}
 
 	return playlistName, songList, nil
@@ -106,62 +93,54 @@ func GetPlaylistData(playlistURL string, spotifyClient *spotify.Client) (string,
 // CreateM3UPlaylist generates an .m3u playlist from a list of "Artist - Song" strings
 func CreateM3UPlaylist(songList []string, musicRoot, outputPath string) error {
 	var matchedPaths []string
-
 	matchedSongs := make(map[string]bool)
-
-	err := filepath.Walk(musicRoot, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-
-		lowerPath := strings.ToLower(path)
-		for _, song := range songList {
-			parts := strings.SplitN(song, " - ", 2)
-			if len(parts) != 2 {
-				continue
-			}
-
-			artist := strings.ToLower(strings.TrimSpace(parts[0]))
-			title := strings.ToLower(strings.TrimSpace(parts[1]))
-
-			if !strings.HasSuffix(lowerPath, ".lrc") {
-				if _, ok := matchedSongs[song]; ok {
-					continue // Skip if already matched
-				}
-
-				if strings.Contains(lowerPath, strings.ToLower(song)+".") {
-					relPath, _ := filepath.Rel(filepath.Dir(outputPath), path)
-
-					// TODO FIX IT LATER
-					relPath = strings.Replace(relPath, "../../", "", 1)
-					relPath = strings.ReplaceAll(relPath, "..", "Job-downloaded")
-					relPath = "/music/" + relPath
-					matchedPaths = append(matchedPaths, relPath)
-					matchedSongs[song] = true
-					break // prevent duplicate matches
-				} else if strings.Contains(lowerPath, artist) && strings.Contains(lowerPath, title) {
-					relPath, _ := filepath.Rel(filepath.Dir(outputPath), path)
-
-					// TODO FIX IT LATER
-					relPath = strings.Replace(relPath, "../../", "", 1)
-					relPath = strings.ReplaceAll(relPath, "..", "Job-downloaded")
-					relPath = "/music/" + relPath
-					matchedPaths = append(matchedPaths, relPath)
-					matchedSongs[song] = true
-					break // prevent duplicate matches
-				}
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
 
 	// check if file already exists
 	if _, err := os.Stat(outputPath); err == nil {
 		return os.ErrExist
+	}
+
+	for _, song := range songList {
+		parts := strings.SplitN(song, " - ", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		// artist := strings.ToLower(strings.TrimSpace(parts[0]))
+		// title := strings.ToLower(strings.TrimSpace(parts[1]))
+		songLower := strings.ToLower(song)
+
+		var matchedPath string
+
+		filepath.Walk(musicRoot, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() || strings.HasSuffix(strings.ToLower(path), ".lrc") {
+				return nil
+			}
+
+			if _, ok := matchedSongs[song]; ok {
+				return filepath.SkipDir // skip remaining walk if already matched
+			}
+
+			lowerPath := strings.ToLower(path)
+
+			if strings.Contains(lowerPath, songLower+".") { // || (strings.Contains(lowerPath, artist) && strings.Contains(lowerPath, title))
+
+				relPath, _ := filepath.Rel(filepath.Dir(outputPath), path)
+				relPath = strings.Replace(relPath, "../../", "", 1)
+				relPath = strings.ReplaceAll(relPath, "..", "Job-downloaded")
+				relPath = "/music/" + relPath
+
+				matchedPath = relPath
+				matchedSongs[song] = true
+				return filepath.SkipDir // stop walking further for this song
+			}
+
+			return nil
+		})
+
+		if matchedPath != "" {
+			matchedPaths = append(matchedPaths, matchedPath)
+		}
 	}
 
 	// Write the M3U file
