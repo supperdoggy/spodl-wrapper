@@ -157,11 +157,15 @@ func (s *service) ProcessPlaylistRequest(ctx context.Context) error {
 }
 
 func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistRequest) error {
+	s.log.Info("processing playlist", zap.Any("playlist", playlist))
+
 	playlistName, songList, err := utils.GetPlaylistData(playlist.SpotifyURL, s.spotifyClient)
 	if err != nil {
 		s.log.Error("failed to get playlist data", zap.Error(err))
 		return err
 	}
+
+	s.log.Info("got playlist data", zap.Any("playlistName", playlistName), zap.Any("songList", songList))
 
 	outputPath := s.destination + "/Playlists/" + playlistName + ".m3u"
 
@@ -169,6 +173,8 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 		s.log.Error("failed to create m3u playlist", zap.Error(err))
 		return err
 	}
+
+	s.log.Info("created m3u playlist", zap.Any("outputPath", outputPath))
 
 	return nil
 }

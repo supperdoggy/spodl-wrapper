@@ -93,10 +93,8 @@ func GetPlaylistData(playlistURL string, spotifyClient *spotify.Client) (string,
 	// Create a list of "Artist - Song" strings
 	var songList []string
 	for _, song := range songs {
-		var artist string
-		if len(song.Artists) > 1 {
-			artist = strings.Join(song.Artists, ", ")
-		} else {
+		artist := strings.Join(song.Artists, ", ")
+		if artist == "" {
 			artist = song.Artist
 		}
 		songList = append(songList, fmt.Sprintf("%s - %s", artist, song.Name))
@@ -126,21 +124,32 @@ func CreateM3UPlaylist(songList []string, musicRoot, outputPath string) error {
 			artist := strings.ToLower(strings.TrimSpace(parts[0]))
 			title := strings.ToLower(strings.TrimSpace(parts[1]))
 
-			if strings.Contains(lowerPath, artist) && strings.Contains(lowerPath, title) && !strings.HasSuffix(lowerPath, ".lrc") {
-
+			if !strings.HasSuffix(lowerPath, ".lrc") {
 				if _, ok := matchedSongs[song]; ok {
 					continue // Skip if already matched
 				}
 
-				relPath, _ := filepath.Rel(filepath.Dir(outputPath), path)
+				if strings.Contains(lowerPath, strings.ToLower(song)+".") {
+					relPath, _ := filepath.Rel(filepath.Dir(outputPath), path)
 
-				// TODO FIX IT LATER
-				relPath = strings.Replace(relPath, "../../", "", 1)
-				relPath = strings.ReplaceAll(relPath, "..", "Job-downloaded")
-				relPath = "/music/" + relPath
-				matchedPaths = append(matchedPaths, relPath)
-				matchedSongs[song] = true
-				break // prevent duplicate matches
+					// TODO FIX IT LATER
+					relPath = strings.Replace(relPath, "../../", "", 1)
+					relPath = strings.ReplaceAll(relPath, "..", "Job-downloaded")
+					relPath = "/music/" + relPath
+					matchedPaths = append(matchedPaths, relPath)
+					matchedSongs[song] = true
+					break // prevent duplicate matches
+				} else if strings.Contains(lowerPath, artist) && strings.Contains(lowerPath, title) {
+					relPath, _ := filepath.Rel(filepath.Dir(outputPath), path)
+
+					// TODO FIX IT LATER
+					relPath = strings.Replace(relPath, "../../", "", 1)
+					relPath = strings.ReplaceAll(relPath, "..", "Job-downloaded")
+					relPath = "/music/" + relPath
+					matchedPaths = append(matchedPaths, relPath)
+					matchedSongs[song] = true
+					break // prevent duplicate matches
+				}
 			}
 		}
 		return nil
