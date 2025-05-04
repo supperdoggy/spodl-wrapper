@@ -19,6 +19,7 @@ type Database interface {
 	IndexMusicFile(ctx context.Context, file models.MusicFile) error
 	GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error)
 	UpdatePlaylistRequest(ctx context.Context, request models.PlaylistRequest) error
+	FindMusicFilePaths(ctx context.Context, artistTitle map[string]string) ([]string, error)
 }
 
 type db struct {
@@ -171,4 +172,35 @@ func (d *db) musicFilesCollection() *mongo.Collection {
 	}
 
 	return d.conn.Database(d.dbname).Collection("music-files")
+}
+func (d *db) FindMusicFilePaths(ctx context.Context, artistSong map[string]string) ([]string, error) {
+	orPairs := make([]bson.M, 0, len(artistSong))
+	for artist, song := range artistSong {
+		orPairs = append(orPairs, bson.M{
+			"artist": artist,
+			"title":  song,
+		})
+	}
+
+	cur, err := d.musicFilesCollection().Find(ctx, bson.M{
+		"$or": orPairs,
+	}, options.Find().SetProjection(bson.M{"path": 1}))
+	if err != nil {
+		return nil, err
+	}
+
+	defer cur.Close(ctx)
+	var paths []string
+	for cur.Next(ctx) {
+		var file models.MusicFile
+		if err := cur.Decode(&file); err != nil {
+			return nil, err
+		}
+		paths = append(paths, file.Path)
+	}
+	if err := cur.Err(); err != nil {
+		return nil, err
+	}
+
+	return paths, nil
 }

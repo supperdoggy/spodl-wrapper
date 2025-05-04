@@ -1,13 +1,9 @@
 package utils
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/zmb3/spotify/v2"
 )
 
 type PlaylistTrack struct {
@@ -43,62 +39,9 @@ type PlaylistTrack struct {
 	AlbumType     string   `json:"album_type"`
 }
 
-func GetPlaylistData(playlistURL string, spotifyClient *spotify.Client) (string, []string, error) {
-
-	// Extract the list name from the playlist URL
-
-	playlistID := strings.Split(strings.Split(playlistURL, "/")[4], "?")[0]
-	playlist, err := spotifyClient.GetPlaylist(context.Background(), spotify.ID(playlistID))
-	if err != nil {
-		fmt.Println("Error getting playlist:", err)
-		return "", nil, err
-	}
-
-	playlistName := playlist.Name
-
-	var playlistItems []spotify.PlaylistItem
-	itemsPage, err := spotifyClient.GetPlaylistItems(context.Background(), spotify.ID(playlistID))
-	if err != nil {
-		fmt.Println("Error getting playlist items:", err)
-		return "", nil, err
-	}
-
-	if itemsPage.Total > spotify.Numeric(len(itemsPage.Items)) {
-		total := int(itemsPage.Total)
-		for i := 0; i < total; i += int(itemsPage.Limit) {
-			items, err := spotifyClient.GetPlaylistItems(context.Background(), spotify.ID(playlistID), spotify.Limit(int(itemsPage.Limit)), spotify.Offset(i))
-			if err != nil {
-				fmt.Println("Error getting playlist items:", err)
-				return "", nil, err
-			}
-			playlistItems = append(playlistItems, items.Items...)
-		}
-	} else {
-		playlistItems = itemsPage.Items
-	}
-
-	// Create a list of "Artist - Song" strings
-	var songList []string
-	for _, song := range playlistItems {
-		artistNames := make([]string, len(song.Track.Track.Artists))
-		for i, artist := range song.Track.Track.Artists {
-			artistNames[i] = artist.Name
-		}
-		songList = append(songList, fmt.Sprintf("%s - %s", strings.Join(artistNames, ", "), song.Track.Track.Name))
-	}
-
-	return playlistName, songList, nil
-}
-
-// CreateM3UPlaylist generates an .m3u playlist from a list of "Artist - Song" strings
-func CreateM3UPlaylist(songList []string, musicRoot, outputPath string) error {
+func FindUnindexedSongs(songList []string, musicRoot, outputPath string) ([]string, error) {
 	var matchedPaths []string
 	matchedSongs := make(map[string]bool)
-
-	// check if file already exists
-	if _, err := os.Stat(outputPath); err == nil {
-		return os.ErrExist
-	}
 
 	for _, song := range songList {
 		parts := strings.SplitN(song, " - ", 2)
@@ -106,8 +49,6 @@ func CreateM3UPlaylist(songList []string, musicRoot, outputPath string) error {
 			continue
 		}
 
-		// artist := strings.ToLower(strings.TrimSpace(parts[0]))
-		// title := strings.ToLower(strings.TrimSpace(parts[1]))
 		songLower := strings.ToLower(song)
 
 		var matchedPath string
@@ -141,6 +82,17 @@ func CreateM3UPlaylist(songList []string, musicRoot, outputPath string) error {
 		if matchedPath != "" {
 			matchedPaths = append(matchedPaths, matchedPath)
 		}
+	}
+
+	return matchedPaths, nil
+}
+
+// CreateM3UPlaylist generates an .m3u playlist from a list of "Artist - Song" strings
+func CreateM3UPlaylist(matchedPaths []string, musicRoot, outputPath string) error {
+
+	// check if file already exists
+	if _, err := os.Stat(outputPath); err == nil {
+		return os.ErrExist
 	}
 
 	// Write the M3U file

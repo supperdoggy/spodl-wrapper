@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/DigitalIndependence/models"
@@ -159,17 +161,47 @@ func (s *service) ProcessPlaylistRequest(ctx context.Context) error {
 func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistRequest) error {
 	s.log.Info("processing playlist", zap.Any("playlist", playlist))
 
-	playlistName, songList, err := utils.GetPlaylistData(playlist.SpotifyURL, s.spotifyClient)
+	playlistName, songList, err := s.GetPlaylistData(playlist.SpotifyURL)
 	if err != nil {
 		s.log.Error("failed to get playlist data", zap.Error(err))
 		return err
 	}
 
+	artistSong := make(map[string]string)
+	for _, item := range songList {
+		artist := []string{}
+		for _, artistItem := range item.Track.Track.Artists {
+			artist = append(artist, strings.ToLower(artistItem.Name))
+		}
+
+		artistSong[strings.Join(artist, ", ")] = strings.ToLower(item.Track.Track.Name)
+	}
+
+	indexedPaths, err := s.database.FindMusicFilePaths(ctx, artistSong)
+	if err != nil {
+		s.log.Error("failed to find music file paths", zap.Error(err))
+		return err
+	}
+
+	if len(indexedPaths) == 0 {
+		s.log.Error("no indexed paths found for playlist", zap.Any("playlistName", playlistName))
+		return errors.New("no indexed paths found for playlist")
+	}
+
+	for i, path := range indexedPaths {
+		indexedPaths[i] = strings.ReplaceAll(path, "/srv/remotemount/nascore_media/Music", "/music/")
+	}
+
 	s.log.Info("got playlist data", zap.Any("playlistName", playlistName), zap.Any("songList", songList))
+
+	// sort by spotifyItems
+	// sort.Slice(songList, func(i, j int) bool {
+	// 	return songList[i].Track.Track.Name < songList[j].Track.Track.Name
+	// })
 
 	outputPath := s.destination + "/Playlists/" + playlistName + ".m3u"
 
-	if err := utils.CreateM3UPlaylist(songList, s.libraryPath, outputPath); err != nil {
+	if err := utils.CreateM3UPlaylist(indexedPaths, s.libraryPath, outputPath); err != nil {
 		s.log.Error("failed to create m3u playlist", zap.Error(err))
 		return err
 	}
@@ -177,4 +209,50 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 	s.log.Info("created m3u playlist", zap.Any("outputPath", outputPath))
 
 	return nil
+}
+
+func (s *service) GetPlaylistData(playlistURL string) (string, []spotify.PlaylistItem, error) {
+	// Extract the list name from the playlist URL
+
+	playlistID := strings.Split(strings.Split(playlistURL, "/")[4], "?")[0]
+	playlist, err := s.spotifyClient.GetPlaylist(context.Background(), spotify.ID(playlistID))
+	if err != nil {
+		fmt.Println("Error getting playlist:", err)
+		return "", nil, err
+	}
+
+	playlistName := playlist.Name
+
+	var playlistItems []spotify.PlaylistItem
+	itemsPage, err := s.spotifyClient.GetPlaylistItems(context.Background(), spotify.ID(playlistID))
+	if err != nil {
+		fmt.Println("Error getting playlist items:", err)
+		return "", nil, err
+	}
+
+	if itemsPage.Total > spotify.Numeric(len(itemsPage.Items)) {
+		total := int(itemsPage.Total)
+		for i := 0; i < total; i += int(itemsPage.Limit) {
+			items, err := s.spotifyClient.GetPlaylistItems(context.Background(), spotify.ID(playlistID), spotify.Limit(int(itemsPage.Limit)), spotify.Offset(i))
+			if err != nil {
+				fmt.Println("Error getting playlist items:", err)
+				return "", nil, err
+			}
+			playlistItems = append(playlistItems, items.Items...)
+		}
+	} else {
+		playlistItems = itemsPage.Items
+	}
+
+	// Create a list of "Artist - Song" strings
+	// var songList []string
+	// for _, song := range playlistItems {
+	// 	artistNames := make([]string, len(song.Track.Track.Artists))
+	// 	for i, artist := range song.Track.Track.Artists {
+	// 		artistNames[i] = artist.Name
+	// 	}
+	// 	songList = append(songList, fmt.Sprintf("%s - %s", strings.Join(artistNames, ", "), song.Track.Track.Name))
+	// }
+
+	return playlistName, playlistItems, nil
 }

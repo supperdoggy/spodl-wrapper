@@ -37,6 +37,8 @@ github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8 h1:qF7Q
 github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8/go.mod h1:jpD/dIvGiS8F/G4RvvhAbP9Mi9zAu0baDJJaOwxoz68=
 github.com/DigitalIndependence/models v0.0.0-20250501182004-10ac2121267e h1:xgP5krF1QTQar9nM027jNSI9iTHMVJhbjvkz0brshWI=
 github.com/DigitalIndependence/models v0.0.0-20250501182004-10ac2121267e/go.mod h1:jpD/dIvGiS8F/G4RvvhAbP9Mi9zAu0baDJJaOwxoz68=
+github.com/DigitalIndependence/models v0.0.0-20250502175855-f2899696bd73 h1:B6v3HLY/wXwjsFfW+7B3L1ituv8iSoxcPEsDlLOsDxw=
+github.com/DigitalIndependence/models v0.0.0-20250502175855-f2899696bd73/go.mod h1:jpD/dIvGiS8F/G4RvvhAbP9Mi9zAu0baDJJaOwxoz68=
 github.com/aws/aws-sdk-go v1.55.5 h1:KKUZBfBoyqy5d3swXyiC7Q76ic40rYcbqH7qjh59kzU=
 github.com/aws/aws-sdk-go v1.55.5/go.mod h1:eRwEWoyTWFMVYVQzKMNHWP5/RV4xIUGMQfXQHfHkpNU=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
