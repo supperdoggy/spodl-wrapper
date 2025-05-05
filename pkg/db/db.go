@@ -21,7 +21,7 @@ type Database interface {
 	GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error)
 	UpdatePlaylistRequest(ctx context.Context, request models.PlaylistRequest) error
 
-	FindMusicFiles(ctx context.Context, artistTitle map[string]string) ([]models.MusicFile, error)
+	FindMusicFiles(ctx context.Context, artists, titles []string) ([]models.MusicFile, error)
 	IndexMusicFile(ctx context.Context, file models.MusicFile) error
 }
 
@@ -89,7 +89,9 @@ func (d *db) GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, 
 
 func (d *db) UpdatePlaylistRequest(ctx context.Context, request models.PlaylistRequest) error {
 	info, err := d.playlistsCollection().UpdateOne(ctx, bson.M{"_id": request.ID}, bson.M{"$set": bson.M{
-		"active": request.Active,
+		"active":      request.Active,
+		"errored":     request.Errored,
+		"retry_count": request.RetryCount,
 	}})
 
 	if info.MatchedCount == 0 {
@@ -176,14 +178,16 @@ func (d *db) musicFilesCollection() *mongo.Collection {
 
 	return d.conn.Database(d.dbname).Collection("music-files")
 }
-func (d *db) FindMusicFiles(ctx context.Context, artistSong map[string]string) ([]models.MusicFile, error) {
-	orPairs := make([]bson.M, 0, len(artistSong))
-	for artist, song := range artistSong {
+func (d *db) FindMusicFiles(ctx context.Context, artists, titles []string) ([]models.MusicFile, error) {
+	orPairs := make([]bson.M, 0, len(artists))
+	for i := range artists {
 		orPairs = append(orPairs, bson.M{
-			"artist": artist,
-			"title":  song,
+			"artist": artists[i],
+			"title":  titles[i],
 		})
 	}
+
+	d.log.Info("Finding music files", zap.Any("orPairs", orPairs))
 
 	cur, err := d.musicFilesCollection().Find(ctx, bson.M{
 		"$or": orPairs,
