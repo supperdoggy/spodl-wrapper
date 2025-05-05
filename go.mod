@@ -1,21 +1,24 @@
 module github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper
 
-go 1.21.6
+go 1.23.0
+
+toolchain go1.23.4
 
 replace github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8 => /Users/maks/go/src/github.com/supperdoggy/SmartHomeServer/music-services/models
 
 require (
-	github.com/DigitalIndependence/models v0.0.0-20250502175855-f2899696bd73
+	github.com/DigitalIndependence/models v0.0.0-20250505133726-71d1bb1027ce
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/zmb3/spotify/v2 v2.4.3
 	go.mongodb.org/mongo-driver v1.17.1
 	go.uber.org/zap v1.27.0
+	golang.org/x/oauth2 v0.30.0
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 )
 
 require (
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
@@ -24,15 +27,10 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	github.com/zmb3/spotify/v2 v2.4.3 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.26.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
-	golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
-	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

@@ -15,11 +15,14 @@ import (
 
 type Database interface {
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
+	GetActiveRequest(ctx context.Context, url string) (models.DownloadQueueRequest, error)
 	UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error
-	IndexMusicFile(ctx context.Context, file models.MusicFile) error
+
 	GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error)
 	UpdatePlaylistRequest(ctx context.Context, request models.PlaylistRequest) error
-	FindMusicFilePaths(ctx context.Context, artistTitle map[string]string) ([]string, error)
+
+	FindMusicFiles(ctx context.Context, artistTitle map[string]string) ([]models.MusicFile, error)
+	IndexMusicFile(ctx context.Context, file models.MusicFile) error
 }
 
 type db struct {
@@ -173,7 +176,7 @@ func (d *db) musicFilesCollection() *mongo.Collection {
 
 	return d.conn.Database(d.dbname).Collection("music-files")
 }
-func (d *db) FindMusicFilePaths(ctx context.Context, artistSong map[string]string) ([]string, error) {
+func (d *db) FindMusicFiles(ctx context.Context, artistSong map[string]string) ([]models.MusicFile, error) {
 	orPairs := make([]bson.M, 0, len(artistSong))
 	for artist, song := range artistSong {
 		orPairs = append(orPairs, bson.M{
@@ -184,23 +187,34 @@ func (d *db) FindMusicFilePaths(ctx context.Context, artistSong map[string]strin
 
 	cur, err := d.musicFilesCollection().Find(ctx, bson.M{
 		"$or": orPairs,
-	}, options.Find().SetProjection(bson.M{"path": 1}))
+	}, options.Find().SetProjection(bson.M{"meta_data": 0}))
 	if err != nil {
 		return nil, err
 	}
 
 	defer cur.Close(ctx)
-	var paths []string
+
+	files := make([]models.MusicFile, 0)
 	for cur.Next(ctx) {
 		var file models.MusicFile
 		if err := cur.Decode(&file); err != nil {
 			return nil, err
 		}
-		paths = append(paths, file.Path)
+		files = append(files, file)
 	}
 	if err := cur.Err(); err != nil {
 		return nil, err
 	}
 
-	return paths, nil
+	return files, nil
+}
+
+func (d *db) GetActiveRequest(ctx context.Context, url string) (models.DownloadQueueRequest, error) {
+	cur := d.downloadQueueRequestCollection().FindOne(ctx, bson.M{"spotify_url": url, "active": true})
+	var req models.DownloadQueueRequest
+	if err := cur.Decode(&req); err != nil {
+		return models.DownloadQueueRequest{}, err
+	}
+
+	return req, nil
 }
