@@ -16,6 +16,8 @@ import (
 type Database interface {
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
 	GetActiveRequest(ctx context.Context, url string) (models.DownloadQueueRequest, error)
+	CheckIfRequestAlreadySynced(ctx context.Context, url string) (bool, error)
+	NewDownloadRequest(ctx context.Context, url, name string, creatorID int64) error
 	UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error
 
 	GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error)
@@ -46,6 +48,39 @@ func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Data
 		url:    url,
 		dbname: dbname,
 	}, nil
+}
+
+func (d *db) NewDownloadRequest(ctx context.Context, url, name string, creatorID int64) error {
+	id, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+
+	request := models.DownloadQueueRequest{
+		SpotifyURL: url,
+		Name:       name,
+		Active:     true,
+		ID:         id.String(),
+		CreatedAt:  time.Now().Unix(),
+		CreatorID:  creatorID,
+	}
+
+	_, err = d.downloadQueueRequestCollection().InsertOne(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *db) CheckIfRequestAlreadySynced(ctx context.Context, url string) (bool, error) {
+	var count int64
+	count, err := d.downloadQueueRequestCollection().CountDocuments(ctx, bson.M{"spotify_url": url, "active": false})
+	if err != nil && err != mongo.ErrNoDocuments {
+		return false, err
+	}
+
+	return count > 0, nil
 }
 
 func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error) {

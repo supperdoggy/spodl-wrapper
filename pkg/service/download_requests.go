@@ -19,6 +19,11 @@ func (s *service) ProcessDownloadRequest(ctx context.Context) error {
 		return err
 	}
 
+	if len(active) == 0 {
+		s.log.Info("no active requests to process")
+		return nil
+	}
+
 	s.log.Info("processing active requests", zap.Any("requests", len(active)))
 
 	// sort active by errored so errored requests are processed last

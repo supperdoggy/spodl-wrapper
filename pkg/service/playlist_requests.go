@@ -7,8 +7,13 @@ import (
 
 	"github.com/DigitalIndependence/models"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/utils"
+	"github.com/zmb3/spotify/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
+)
+
+var (
+	ErrMissingFiles = errors.New("missing files")
 )
 
 func (s *service) ProcessPlaylistRequest(ctx context.Context) error {
@@ -29,7 +34,7 @@ func (s *service) ProcessPlaylistRequest(ctx context.Context) error {
 			playlist.Active = false
 		}
 
-		if playlist.RetryCount >= 3 {
+		if playlist.RetryCount >= 5 {
 			playlist.Active = false
 		}
 
@@ -55,7 +60,7 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 
 	if downloadRequest.Active {
 		s.log.Info("download request is still active, will continue to process playlist once done", zap.Any("playlist", playlist))
-		return nil
+		return ErrMissingFiles
 	}
 
 	playlistName, err := s.spotifyService.GetObjectName(ctx, playlist.SpotifyURL)
@@ -99,6 +104,7 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 		foundMusicMap[key] = music
 	}
 
+	missingMusicFiles := []spotify.PlaylistItem{}
 	indexedPaths := make([]string, 0)
 	for _, song := range songList {
 		artists := []string{}
@@ -114,11 +120,31 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 
 		if _, ok := foundMusicMap[key]; !ok {
 			s.log.Error("song not found in indexed paths", zap.Any("artist", artist), zap.Any("songName", songName))
+			missingMusicFiles = append(missingMusicFiles, song)
 			// return errors.New("song not found in indexed paths")
 			continue
 		}
 
 		indexedPaths = append(indexedPaths, foundMusicMap[key].Path)
+	}
+
+	// if we tried to download the playlist but it failed then whatever
+	if len(missingMusicFiles) > 0 {
+		s.log.Error("missing music files", zap.Any("missingMusicFiles", missingMusicFiles))
+		alreadySynced, err := s.database.CheckIfRequestAlreadySynced(ctx, playlist.SpotifyURL)
+		if err != nil {
+			s.log.Error("failed to check if request already synced", zap.Error(err))
+		}
+
+		if !alreadySynced {
+			if err := s.database.NewDownloadRequest(ctx, playlist.SpotifyURL, playlistName, 0); err != nil {
+				s.log.Error("failed to add download request", zap.Error(err))
+			}
+			return ErrMissingFiles
+		} else {
+			s.log.Info("skipping already synced song", zap.Any("song", missingMusicFiles))
+		}
+
 	}
 
 	for i, path := range indexedPaths {
