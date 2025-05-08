@@ -46,7 +46,6 @@ func (s *service) StartProcessing(ctx context.Context) error {
 	// run indexation for all downloaded files
 	if err := s.IndexDownloadedFiles(ctx); err != nil {
 		s.log.Error("failed to index downloaded files", zap.Error(err))
-		return err
 	}
 
 	playlistError := s.ProcessPlaylistRequest(ctx)
