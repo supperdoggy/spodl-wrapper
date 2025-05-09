@@ -17,6 +17,18 @@ var (
 )
 
 func (s *service) ProcessPlaylistRequest(ctx context.Context) error {
+
+	indexStatus, err := s.database.GetIndexStatus(ctx)
+	if err != nil {
+		s.log.Error("failed to get index status", zap.Error(err))
+		return err
+	}
+
+	if indexStatus.LastUpdated > indexStatus.LastIndexed {
+		s.log.Info("indexing in progress, skipping playlist processing")
+		return nil
+	}
+
 	playlists, err := s.database.GetActivePlaylists(ctx)
 	if err != nil {
 		s.log.Error("failed to get active playlists", zap.Error(err))
@@ -78,6 +90,10 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 	artists := []string{}
 	titles := []string{}
 	for _, item := range songList {
+		if item.Track.Track == nil {
+			s.log.Error("skipping empty track", zap.Any("item", item))
+			continue
+		}
 		artist := []string{}
 		for _, artistItem := range item.Track.Track.Artists {
 			artist = append(artist, strings.ToLower(artistItem.Name))
@@ -107,6 +123,10 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 	missingMusicFiles := []spotify.PlaylistItem{}
 	indexedPaths := make([]string, 0)
 	for _, song := range songList {
+		if song.Track.Track == nil {
+			s.log.Error("skipping empty track", zap.Any("item", song))
+			continue
+		}
 		artists := []string{}
 		for _, artistItem := range song.Track.Track.Artists {
 			artists = append(artists, strings.ToLower(artistItem.Name))

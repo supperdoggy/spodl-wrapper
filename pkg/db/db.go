@@ -25,6 +25,9 @@ type Database interface {
 
 	FindMusicFiles(ctx context.Context, artists, titles []string) ([]models.MusicFile, error)
 	IndexMusicFile(ctx context.Context, file models.MusicFile) error
+
+	GetIndexStatus(ctx context.Context) (models.IndexStatus, error)
+	UpdateIndexStatus(ctx context.Context, status models.IndexStatus) error
 }
 
 type db struct {
@@ -204,6 +207,15 @@ func (d *db) playlistsCollection() *mongo.Collection {
 	return d.conn.Database(d.dbname).Collection("playlist-requests")
 }
 
+func (d *db) indexStatusCollection() *mongo.Collection {
+	if err := d.conn.Ping(context.Background(), nil); err != nil {
+		d.log.Error("failed to ping database. reconnecting.", zap.Error(err))
+		d.reconnectToDB()
+	}
+
+	return d.conn.Database(d.dbname).Collection("index-status")
+}
+
 // musicFilesCollection returns the music files collection
 func (d *db) musicFilesCollection() *mongo.Collection {
 	if err := d.conn.Ping(context.Background(), nil); err != nil {
@@ -256,4 +268,25 @@ func (d *db) GetActiveRequest(ctx context.Context, url string) (models.DownloadQ
 	}
 
 	return req, nil
+}
+
+func (d *db) GetIndexStatus(ctx context.Context) (models.IndexStatus, error) {
+	var status models.IndexStatus
+	err := d.indexStatusCollection().FindOne(ctx, bson.M{}).Decode(&status)
+	if err != nil {
+		return models.IndexStatus{}, err
+	}
+
+	return status, nil
+}
+
+func (d *db) UpdateIndexStatus(ctx context.Context, status models.IndexStatus) error {
+	_, err := d.indexStatusCollection().UpdateOne(ctx, bson.M{}, bson.M{
+		"$set": status,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -67,6 +67,18 @@ func (s *service) ProcessDownloadRequest(ctx context.Context) error {
 		}
 	}
 
+	indexStatus, err := s.database.GetIndexStatus(ctx)
+	if err != nil {
+		s.log.Error("failed to get index status", zap.Error(err))
+		return err
+	}
+
+	indexStatus.LastUpdated = time.Now().UTC().Unix()
+	if err := s.database.UpdateIndexStatus(ctx, indexStatus); err != nil {
+		s.log.Error("failed to update index status", zap.Error(err))
+		return err
+	}
+
 	s.log.Info("completed processing of active requests")
 	return nil
 }
