@@ -94,7 +94,7 @@ func (s *service) ProcessRequest(ctx context.Context, request models.DownloadQue
 	}()
 
 	// Run the "spotdl --sync {url}" command
-	cmd := exec.Command("spotdl", request.SpotifyURL, "--sync-without-deleting", "--cookie-file", "/home/maks/music.youtube.com_cookies.txt", "--bitrate", "320k", "--format", "m4a", "--output", s.destination)
+	cmd := exec.Command("spotdl", request.SpotifyURL, "--sync-without-deleting", "--cookie-file", "/home/maks/music.youtube.com_cookies.txt", "--bitrate", "320k", "--format", s.outputFormat, "--output", s.destination)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

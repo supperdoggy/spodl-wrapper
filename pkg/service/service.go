@@ -24,9 +24,10 @@ type service struct {
 	s3Enabled      bool
 	sleepInMinutes int
 	libraryPath    string
+	outputFormat   string
 }
 
-func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, spotifyService spotify.SpotifyService, destination, libraryPath string, s3Enabled bool, sleepInMinutes int) Service {
+func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, spotifyService spotify.SpotifyService, destination, libraryPath, outputFormat string, s3Enabled bool, sleepInMinutes int) Service {
 	return &service{
 		database:       database,
 		log:            log,
@@ -36,6 +37,7 @@ func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, spot
 		s3Enabled:      s3Enabled,
 		sleepInMinutes: sleepInMinutes,
 		libraryPath:    libraryPath,
+		outputFormat:   outputFormat,
 	}
 }
 
@@ -43,10 +45,10 @@ func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, spot
 func (s *service) StartProcessing(ctx context.Context) error {
 	downloadError := s.ProcessDownloadRequest(ctx)
 
-	// run indexation for all downloaded files
-	if err := s.IndexDownloadedFiles(ctx); err != nil {
-		s.log.Error("failed to index downloaded files", zap.Error(err))
-	}
+	// // run indexation for all downloaded files
+	// if err := s.IndexDownloadedFiles(ctx); err != nil {
+	// 	s.log.Error("failed to index downloaded files", zap.Error(err))
+	// }
 
 	playlistError := s.ProcessPlaylistRequest(ctx)
 

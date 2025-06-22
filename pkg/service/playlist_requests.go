@@ -168,7 +168,7 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 	}
 
 	for i, path := range indexedPaths {
-		indexedPaths[i] = strings.ReplaceAll(path, "/srv/remotemount/nascore_media/Music", "/music")
+		indexedPaths[i] = strings.ReplaceAll(path, "/mnt/music", "/music")
 	}
 
 	outputPath := s.destination + "/Playlists/" + playlistName + ".m3u"
