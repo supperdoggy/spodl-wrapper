@@ -4,10 +4,10 @@ go 1.23.0
 
 toolchain go1.23.4
 
-replace github.com/DigitalIndependence/models v0.0.0-20250508174925-f84b70d704ea => /Users/maks/go/src/github.com/supperdoggy/SmartHomeServer/music-services/models
+// replace github.com/DigitalIndependence/models v0.0.0-20250512150954-19ae8a85dfcda => /Users/maks/go/src/github.com/supperdoggy/SmartHomeServer/music-services/models
 
 require (
-	github.com/DigitalIndependence/models v0.0.0-20250508174925-f84b70d704ea
+	github.com/DigitalIndependence/models v0.0.2
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/kelseyhightower/envconfig v1.4.0

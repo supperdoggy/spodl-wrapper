@@ -149,7 +149,7 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 	}
 
 	// if we tried to download the playlist but it failed then whatever
-	if len(missingMusicFiles) > 0 {
+	if len(missingMusicFiles) > 0 && !playlist.NoPull {
 		s.log.Error("missing music files", zap.Any("missingMusicFiles", missingMusicFiles))
 		alreadySynced, err := s.database.CheckIfRequestAlreadySynced(ctx, playlist.SpotifyURL)
 		if err != nil {
@@ -171,7 +171,10 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 		indexedPaths[i] = strings.ReplaceAll(path, "/mnt/music", "/music")
 	}
 
-	outputPath := s.destination + "/Playlists/" + playlistName + ".m3u"
+	playlistPathName := strings.ReplaceAll(playlistName, "/", `-`)
+	// playlistPathName = strings.ReplaceAll(playlistPathName, " ", `\ `)
+
+	outputPath := s.destination + "/Playlists/" + playlistPathName + ".m3u"
 
 	if err := utils.CreateM3UPlaylist(indexedPaths, s.libraryPath, outputPath); err != nil {
 		s.log.Error("failed to create m3u playlist", zap.Error(err))

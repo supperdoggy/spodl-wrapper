@@ -33,6 +33,10 @@ cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
+github.com/DigitalIndependence/models v0.0.0-20250512150954-19ae8a85dfcd h1:D3TnH2KrvZRF47jyQsI/FTZCaulO/CRFXe/CggDRUf8=
+github.com/DigitalIndependence/models v0.0.0-20250512150954-19ae8a85dfcd/go.mod h1:YM8KhDRfYMRiMvPmrsbQTYHvBqO+h7nz64erLktnGNg=
+github.com/DigitalIndependence/models v0.0.2 h1:1ryMG4Rapw1TEsnjPOAjVRWZ3d4TTyVYjeEd9JLQ8zI=
+github.com/DigitalIndependence/models v0.0.2/go.mod h1:YM8KhDRfYMRiMvPmrsbQTYHvBqO+h7nz64erLktnGNg=
 github.com/aws/aws-sdk-go v1.55.5 h1:KKUZBfBoyqy5d3swXyiC7Q76ic40rYcbqH7qjh59kzU=
 github.com/aws/aws-sdk-go v1.55.5/go.mod h1:eRwEWoyTWFMVYVQzKMNHWP5/RV4xIUGMQfXQHfHkpNU=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
