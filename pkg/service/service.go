@@ -24,10 +24,9 @@ type service struct {
 	s3Enabled      bool
 	sleepInMinutes int
 	libraryPath    string
-	outputFormat   string
 }
 
-func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, spotifyService spotify.SpotifyService, destination, libraryPath, outputFormat string, s3Enabled bool, sleepInMinutes int) Service {
+func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, spotifyService spotify.SpotifyService, destination, libraryPath string, s3Enabled bool, sleepInMinutes int) Service {
 	return &service{
 		database:       database,
 		log:            log,
@@ -37,7 +36,6 @@ func NewService(database db.Database, log *zap.Logger, s3 blob.BlobStorage, spot
 		s3Enabled:      s3Enabled,
 		sleepInMinutes: sleepInMinutes,
 		libraryPath:    libraryPath,
-		outputFormat:   outputFormat,
 	}
 }
 

@@ -26,7 +26,6 @@ type Config struct {
 	Destination      string `envconfig:"DESTINATION" required:"true"`
 	MusicLibraryPath string `envconfig:"MUSIC_LIBRARY_PATH" required:"true"`
 	SleepInMinutes   int    `envconfig:"SLEEP_IN_MINUTES" required:"true"`
-	OutputFormat     string `envconfig:"OUTPUT_FORMAT" required:"true"`
 }
 
 func NewConfig() (*Config, error) {
