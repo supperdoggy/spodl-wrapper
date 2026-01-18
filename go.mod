@@ -7,14 +7,13 @@ toolchain go1.23.4
 replace github.com/supperdoggy/spot-models => ../models
 
 require (
-	github.com/supperdoggy/spot-models v0.0.0
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/supperdoggy/spot-models v0.0.0
 	github.com/zmb3/spotify/v2 v2.4.3
 	go.mongodb.org/mongo-driver v1.17.3
 	go.uber.org/zap v1.27.0
-	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 )
 
 require (

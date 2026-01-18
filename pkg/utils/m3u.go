@@ -53,7 +53,7 @@ func FindUnindexedSongs(songList []string, musicRoot, outputPath string) ([]stri
 
 		var matchedPath string
 
-		filepath.Walk(musicRoot, func(path string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(musicRoot, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() || strings.HasSuffix(strings.ToLower(path), ".lrc") {
 				return nil
 			}

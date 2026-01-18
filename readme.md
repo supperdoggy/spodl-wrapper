@@ -1,129 +1,141 @@
-# Spotify Link Downloader Service
+# spotdl-wapper
 
-## Overview
+[![CI](https://github.com/supperdoggy/spotdl-wapper/actions/workflows/ci.yml/badge.svg)](https://github.com/supperdoggy/spotdl-wapper/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/supperdoggy/spotdl-wapper)](https://goreportcard.com/report/github.com/supperdoggy/spotdl-wapper)
 
-This is a Golang service that retrieves Spotify playlist, album, and song links from a MongoDB database and downloads them using the `spotdl` utility. The service pulls the links from MongoDB, invokes `spotdl` to download the corresponding media, and manages the download process efficiently.
+A Go wrapper service for [spotdl](https://github.com/spotDL/spotify-downloader) that processes download requests from a MongoDB queue.
 
 ## Features
 
-- Fetches Spotify links (playlists, albums, songs) from MongoDB.
-- Downloads tracks using the `spotdl` command-line utility.
-- Supports queue management for batch downloading.
-- Logs download statuses and errors for easy troubleshooting.
+- 🎵 Processes Spotify download requests from MongoDB queue
+- 📁 Downloads music to configurable destination
+- ☁️ Optional S3-compatible blob storage upload
+- 🔄 Automatic retry with configurable sleep intervals
+- 📋 M3U playlist generation support
+- 🎯 Sync-without-deleting mode for playlists
 
 ## Prerequisites
 
-- **Golang** 1.21 or higher
-- **spotdl** utility installed (follow [spotdl documentation](https://github.com/spotDL/spotify-downloader))
-- **MongoDB** for storing Spotify links
-- **ffmpeg** for audio processing (required by `spotdl`)
-- Environment configured for MongoDB access
+- Go 1.23+
+- MongoDB
+- [spotdl](https://github.com/spotDL/spotify-downloader) installed and configured
+- Node.js (for yt-dlp JS challenge solving)
+- [yt-dlp-ejs](https://github.com/AJIeKceuD/yt-dlp-ejs) package
+
+## spotdl Configuration
+
+Create `~/.spotdl/config.json`:
+
+```json
+{
+    "client_id": "your-spotify-client-id",
+    "client_secret": "your-spotify-client-secret",
+    "audio_providers": ["youtube-music"],
+    "lyrics_providers": ["genius", "musixmatch"],
+    "output": "/path/to/music/{artists} - {title}.{output-ext}",
+    "format": "flac",
+    "bitrate": "320k",
+    "threads": 1,
+    "cookie_file": "~/.spotdl/cookies.txt",
+    "yt_dlp_args": "--js-runtimes node --sleep-interval 2 --max-sleep-interval 5"
+}
+```
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | ✅ | MongoDB connection string |
+| `DATABASE_NAME` | ✅ | MongoDB database name |
+| `DESTINATION` | ✅ | Download destination path |
+| `MUSIC_LIBRARY_PATH` | ✅ | Root path of music library |
+| `SLEEP_IN_MINUTES` | ✅ | Sleep time between downloads (rate limiting) |
+| `SPOTIFY_CLIENT_ID` | ✅ | Spotify API client ID |
+| `SPOTIFY_CLIENT_SECRET` | ✅ | Spotify API client secret |
+| `BLOB_ENABLED` | ✅ | Enable S3 storage (`true`/`false`) |
+| `S3_ACCESS_KEY` | ❌ | S3 access key (if blob enabled) |
+| `S3_SECRET_ACCESS` | ❌ | S3 secret key (if blob enabled) |
+| `S3_REGION` | ❌ | S3 region (if blob enabled) |
+| `S3_BUCKET` | ❌ | S3 bucket name (if blob enabled) |
+| `S3_ENDPOINT` | ❌ | S3 endpoint URL (if blob enabled) |
 
 ## Installation
 
-1. **Clone the repository**:
+```bash
+# Clone the repository
+git clone https://github.com/supperdoggy/spotdl-wapper.git
+cd spotdl-wapper
 
-    ```bash
-    git clone https://github.com/yourusername/spotify-link-downloader.git
-    cd spotify-link-downloader
-    ```
+# Install dependencies
+go mod download
 
-2. **Install required dependencies**:
-
-    ```bash
-    go mod tidy
-    ```
-
-3. **Install `spotdl`**:
-
-    Follow the official installation guide to install `spotdl` and its dependencies:
-
-    ```bash
-    pip install spotdl
-    ```
-
-4. **Set up MongoDB**:
-
-    Make sure you have a MongoDB instance running. You can either use a local MongoDB instance or a managed service like MongoDB Atlas.
-
-    Example MongoDB document structure for Spotify links:
-    
-    ```json
-    {
-      "_id": ObjectId("64d4c75b0000000000000000"),
-      "spotify_url": "https://open.spotify.com/track/1234567890abcdefghij",
-      "status": "pending"  // Status could be 'pending', 'downloading', 'completed', 'failed'
-    }
-    ```
-
-5. **Set environment variables**:
-
-    You can store sensitive information like MongoDB connection strings in a `.env` file.
-
-    ```env
-    MONGO_URI=mongodb://localhost:27017
-    MONGO_DB=spotify_links_db
-    MONGO_COLLECTION=links
-    DOWNLOAD_DIR=/path/to/downloads
-    ```
-
-6. **Run the service**:
-
-    ```bash
-    go run main.go
-    ```
-
-## Configuration
-
-Ensure you have configured `spotdl` properly, including setting the location for downloaded files. The service will use this location to save the downloaded Spotify tracks.
+# Build
+go build -o spotdl-wapper .
+```
 
 ## Usage
 
-1. The service will automatically pull Spotify links from the MongoDB collection that have a `status` of `pending`.
-2. For each link, the service will invoke `spotdl` to download the track, playlist, or album to the specified directory.
-3. Once the download is complete, the status of the link will be updated in MongoDB (e.g., `completed`, `failed`).
+```bash
+# Run directly
+DATABASE_URL="mongodb://..." \
+DATABASE_NAME="music-services" \
+DESTINATION="/mnt/music/downloads" \
+MUSIC_LIBRARY_PATH="/mnt/music/" \
+SLEEP_IN_MINUTES=1 \
+BLOB_ENABLED=false \
+SPOTIFY_CLIENT_ID="your-id" \
+SPOTIFY_CLIENT_SECRET="your-secret" \
+./spotdl-wapper
+```
 
-## Example Commands
+## Docker
 
-- Download a Spotify song:
+```bash
+# Build image
+docker build -t spotdl-wapper .
 
-    ```bash
-    spotdl https://open.spotify.com/track/1234567890abcdefghij
-    ```
+# Run
+docker run -d \
+  -v /mnt/music:/mnt/music \
+  -v ~/.spotdl:/root/.spotdl \
+  -e DATABASE_URL="mongodb://..." \
+  -e DATABASE_NAME="music-services" \
+  -e DESTINATION="/mnt/music/downloads" \
+  -e MUSIC_LIBRARY_PATH="/mnt/music/" \
+  -e SLEEP_IN_MINUTES=1 \
+  -e BLOB_ENABLED=false \
+  -e SPOTIFY_CLIENT_ID="your-id" \
+  -e SPOTIFY_CLIENT_SECRET="your-secret" \
+  spotdl-wapper
+```
 
-- Download a Spotify album:
+## How It Works
 
-    ```bash
-    spotdl https://open.spotify.com/album/abcdefghij1234567890
-    ```
+1. Fetches active download requests from MongoDB
+2. Sorts by priority (non-errored first, then by creation date)
+3. Executes `spotdl download` for each request
+4. Updates request status in database
+5. Optionally uploads to S3-compatible storage
+6. Sleeps between downloads to avoid rate limiting
 
-- Download a Spotify playlist:
+## Related Projects
 
-    ```bash
-    spotdl https://open.spotify.com/playlist/abcdefghij0987654321
-    ```
+- [spot-models](https://github.com/supperdoggy/spot-models) - Shared data models
+- [album-queue](https://github.com/supperdoggy/album-queue) - Telegram bot for queueing
 
-## MongoDB Integration
+## Troubleshooting
 
-The service interacts with a MongoDB collection to store Spotify links and track their download status. The links are retrieved periodically or in batch from the MongoDB collection, and their status is updated after each download attempt.
+### HTTP Error 403: Forbidden
 
-- **Pending**: The initial state when the link is added.
-- **Downloading**: When the service has started the download process for a link.
-- **Completed**: When the link has been successfully downloaded.
-- **Failed**: If the download fails for any reason.
+Update yt-dlp to the latest nightly and ensure you have:
+- Node.js installed
+- yt-dlp-ejs package: `pip install yt-dlp-ejs`
+- `--js-runtimes node` in your spotdl config
 
-## Logging
+### Signature solving failed
 
-Logs are generated for each link processed, detailing whether the download was successful or if there were errors. This can help with debugging and monitoring download progress.
-
-## Contributing
-
-1. Fork the repository.
-2. Create your feature branch: `git checkout -b feature/my-new-feature`
-3. Commit your changes: `git commit -am 'Add some feature'`
-4. Push to the branch: `git push origin feature/my-new-feature`
-5. Submit a pull request!
+Make sure you have a JavaScript runtime (Node.js 20+) and yt-dlp-ejs installed.
 
 ## License
 
-This project is licensed under the MIT License.
+MIT
