@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"sort"
 	"time"
 
-	"github.com/supperdoggy/spot-models"
+	models "github.com/supperdoggy/spot-models"
 	"go.uber.org/zap"
 )
 
@@ -85,12 +84,10 @@ func (s *service) ProcessDownloadRequest(ctx context.Context) error {
 
 // ProcessRequest processes the request
 func (s *service) ProcessRequest(ctx context.Context, request models.DownloadQueueRequest) error {
-	defer func() error {
+	defer func() {
 		if r := recover(); r != nil {
 			s.log.Error("recovered from panic", zap.Any("panic", r))
-			return errors.New("recovered from panic")
 		}
-		return nil
 	}()
 
 	args := []string{

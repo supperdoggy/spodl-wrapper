@@ -5,12 +5,12 @@ import (
 	"errors"
 	"time"
 
-	"github.com/supperdoggy/spot-models"
 	"github.com/gofrs/uuid"
+	models "github.com/supperdoggy/spot-models"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
-	"gopkg.in/mgo.v2/bson"
 )
 
 type Database interface {
@@ -176,7 +176,9 @@ func (d *db) MusicFileExist(ctx context.Context, title string) (bool, error) {
 }
 
 func (d *db) reconnectToDB() error {
-	d.conn.Disconnect(context.Background())
+	if err := d.conn.Disconnect(context.Background()); err != nil {
+		d.log.Warn("error disconnecting from database", zap.Error(err))
+	}
 
 	conn, err := mongo.Connect(context.Background(), options.Client().ApplyURI(d.url))
 	if err != nil {
@@ -193,7 +195,9 @@ func (d *db) reconnectToDB() error {
 func (d *db) downloadQueueRequestCollection() *mongo.Collection {
 	if err := d.conn.Ping(context.Background(), nil); err != nil {
 		d.log.Error("failed to ping database. reconnecting.", zap.Error(err))
-		d.reconnectToDB()
+		if reconnectErr := d.reconnectToDB(); reconnectErr != nil {
+			d.log.Error("failed to reconnect to database", zap.Error(reconnectErr))
+		}
 	}
 	return d.conn.Database(d.dbname).Collection("download-queue-requests")
 }
@@ -201,7 +205,9 @@ func (d *db) downloadQueueRequestCollection() *mongo.Collection {
 func (d *db) playlistsCollection() *mongo.Collection {
 	if err := d.conn.Ping(context.Background(), nil); err != nil {
 		d.log.Error("failed to ping database. reconnecting.", zap.Error(err))
-		d.reconnectToDB()
+		if reconnectErr := d.reconnectToDB(); reconnectErr != nil {
+			d.log.Error("failed to reconnect to database", zap.Error(reconnectErr))
+		}
 	}
 
 	return d.conn.Database(d.dbname).Collection("playlist-requests")
@@ -210,7 +216,9 @@ func (d *db) playlistsCollection() *mongo.Collection {
 func (d *db) indexStatusCollection() *mongo.Collection {
 	if err := d.conn.Ping(context.Background(), nil); err != nil {
 		d.log.Error("failed to ping database. reconnecting.", zap.Error(err))
-		d.reconnectToDB()
+		if reconnectErr := d.reconnectToDB(); reconnectErr != nil {
+			d.log.Error("failed to reconnect to database", zap.Error(reconnectErr))
+		}
 	}
 
 	return d.conn.Database(d.dbname).Collection("index-status")
@@ -220,7 +228,9 @@ func (d *db) indexStatusCollection() *mongo.Collection {
 func (d *db) musicFilesCollection() *mongo.Collection {
 	if err := d.conn.Ping(context.Background(), nil); err != nil {
 		d.log.Error("failed to ping database. reconnecting.", zap.Error(err))
-		d.reconnectToDB()
+		if reconnectErr := d.reconnectToDB(); reconnectErr != nil {
+			d.log.Error("failed to reconnect to database", zap.Error(reconnectErr))
+		}
 	}
 
 	return d.conn.Database(d.dbname).Collection("music-files")
