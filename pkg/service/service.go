@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/DigitalIndependence/models/spotify"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/blob"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/db"
+	"github.com/supperdoggy/spot-models/spotify"
 	"go.uber.org/zap"
 )
 

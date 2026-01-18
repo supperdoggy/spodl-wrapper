@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DigitalIndependence/models"
+	"github.com/supperdoggy/spot-models"
 	"go.uber.org/zap"
 )
 

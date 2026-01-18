@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/DigitalIndependence/models"
+	"github.com/supperdoggy/spot-models"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/utils"
 	"github.com/zmb3/spotify/v2"
 	"go.mongodb.org/mongo-driver/mongo"

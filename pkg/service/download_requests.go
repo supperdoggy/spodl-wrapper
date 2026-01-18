@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/DigitalIndependence/models"
+	"github.com/supperdoggy/spot-models"
 	"go.uber.org/zap"
 )
 
