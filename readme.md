@@ -9,7 +9,6 @@ A Go wrapper service for [spotdl](https://github.com/spotDL/spotify-downloader) 
 
 - 🎵 Processes Spotify download requests from MongoDB queue
 - 📁 Downloads music to configurable destination
-- ☁️ Optional S3-compatible blob storage upload
 - 🔄 Automatic retry with configurable sleep intervals
 - 📋 M3U playlist generation support
 - 🎯 Sync-without-deleting mode for playlists
@@ -52,12 +51,6 @@ Create `~/.spotdl/config.json`:
 | `SLEEP_IN_MINUTES` | ✅ | Sleep time between downloads (rate limiting) |
 | `SPOTIFY_CLIENT_ID` | ✅ | Spotify API client ID |
 | `SPOTIFY_CLIENT_SECRET` | ✅ | Spotify API client secret |
-| `BLOB_ENABLED` | ✅ | Enable S3 storage (`true`/`false`) |
-| `S3_ACCESS_KEY` | ❌ | S3 access key (if blob enabled) |
-| `S3_SECRET_ACCESS` | ❌ | S3 secret key (if blob enabled) |
-| `S3_REGION` | ❌ | S3 region (if blob enabled) |
-| `S3_BUCKET` | ❌ | S3 bucket name (if blob enabled) |
-| `S3_ENDPOINT` | ❌ | S3 endpoint URL (if blob enabled) |
 
 ## Installation
 
@@ -82,7 +75,6 @@ DATABASE_NAME="music-services" \
 DESTINATION="/mnt/music/downloads" \
 MUSIC_LIBRARY_PATH="/mnt/music/" \
 SLEEP_IN_MINUTES=1 \
-BLOB_ENABLED=false \
 SPOTIFY_CLIENT_ID="your-id" \
 SPOTIFY_CLIENT_SECRET="your-secret" \
 ./spotdl-wapper
@@ -103,7 +95,6 @@ docker run -d \
   -e DESTINATION="/mnt/music/downloads" \
   -e MUSIC_LIBRARY_PATH="/mnt/music/" \
   -e SLEEP_IN_MINUTES=1 \
-  -e BLOB_ENABLED=false \
   -e SPOTIFY_CLIENT_ID="your-id" \
   -e SPOTIFY_CLIENT_SECRET="your-secret" \
   spotdl-wapper
@@ -115,8 +106,7 @@ docker run -d \
 2. Sorts by priority (non-errored first, then by creation date)
 3. Executes `spotdl download` for each request
 4. Updates request status in database
-5. Optionally uploads to S3-compatible storage
-6. Sleeps between downloads to avoid rate limiting
+5. Sleeps between downloads to avoid rate limiting
 
 ## Related Projects
 
