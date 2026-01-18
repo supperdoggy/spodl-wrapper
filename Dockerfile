@@ -2,13 +2,9 @@
 FROM golang:1.23-alpine AS builder
 
 # Install git and other dependencies
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
-
-# Add GitHub token to authenticate private repositories during go mod download
-ARG GITHUB_TOKEN
-RUN git config --global url."https://${GITHUB_TOKEN}:@github.com/".insteadOf "https://github.com/"
 
 # Copy go.mod and go.sum files to the workspace
 COPY go.mod go.sum ./
@@ -20,25 +16,34 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o main .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o spotdl-wapper .
 
 # Use a minimal base image for the final stage
-FROM alpine:3.18
+FROM python:3.13-alpine
 
 WORKDIR /app
 
-# Install git in the final stage as well
-RUN apk add --no-cache git
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    ffmpeg \
+    nodejs \
+    npm
 
-# Add GitHub token to authenticate private repositories
-ARG GITHUB_TOKEN
-RUN git config --global url."https://${GITHUB_TOKEN}:@github.com/".insteadOf "https://github.com/"
+# Install spotdl and yt-dlp
+RUN pip install --no-cache-dir spotdl yt-dlp yt-dlp-ejs
+
+# Create non-root user for security
+RUN adduser -D -g '' appuser
+
+# Create spotdl config directory
+RUN mkdir -p /home/appuser/.spotdl && chown -R appuser:appuser /home/appuser
+
+USER appuser
 
 # Copy the pre-built binary from the builder stage
-COPY --from=builder /app/main .
-
-# Expose port (optional, if your app listens on a specific port)
-EXPOSE 8080
+COPY --from=builder /app/spotdl-wapper .
 
 # Run the executable
-CMD ["./main"]
+CMD ["./spotdl-wapper"]
