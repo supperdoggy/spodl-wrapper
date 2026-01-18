@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/blob"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/config"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/service"
@@ -15,11 +14,10 @@ import (
 func main() {
 	run()
 	time.Sleep(5 * time.Second)
-
 }
 
 func run() {
-	var ctx = context.Background()
+	ctx := context.Background()
 	log, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
@@ -34,22 +32,14 @@ func run() {
 
 	spotifyService := spotify.NewSpotifyService(ctx, cfg.Spotify.ClientID, cfg.Spotify.ClientSecret, log)
 
-	db, err := db.NewDatabase(ctx, log, cfg.DatabaseURL, cfg.DatabaseName)
+	database, err := db.NewDatabase(ctx, log, cfg.DatabaseURL, cfg.DatabaseName)
 	if err != nil {
 		log.Fatal("failed to connect to database", zap.Error(err))
 	}
 
 	log.Info("connected to database")
 
-	blobStorage := blob.BlobStorage(nil)
-	if cfg.Blob.Enabled {
-		blobStorage, err = blob.NewBlobStorage(log, cfg.Blob)
-		if err != nil {
-			log.Fatal("failed to create blob storage", zap.Error(err))
-		}
-	}
-
-	srv := service.NewService(db, log, blobStorage, spotifyService, cfg.Destination, cfg.MusicLibraryPath, cfg.Blob.Enabled, cfg.SleepInMinutes)
+	srv := service.NewService(database, log, spotifyService, cfg.Destination, cfg.MusicLibraryPath, cfg.SleepInMinutes)
 
 	if err := srv.StartProcessing(ctx); err != nil {
 		log.Fatal("failed to start processing", zap.Error(err))
