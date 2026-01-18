@@ -5,6 +5,7 @@ spotdl-wapper
 *.dll
 *.so
 *.dylib
+.env
 
 # Test binary
 *.test
