@@ -90,8 +90,10 @@ func (s *service) ProcessRequest(ctx context.Context, request models.DownloadQue
 		}
 	}()
 
+	// Build output format with destination path
 	args := []string{
 		request.SpotifyURL,
+		"--output", s.destination,
 		"--config",
 		"--no-cache",
 		"--sync-without-deleting",
