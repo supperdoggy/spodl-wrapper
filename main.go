@@ -2,13 +2,17 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/config"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/db"
+	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/loki"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/service"
 	"github.com/supperdoggy/spot-models/spotify"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func main() {
@@ -18,15 +22,14 @@ func main() {
 
 func run() {
 	ctx := context.Background()
-	log, err := zap.NewDevelopment()
+
+	cfg, err := config.NewConfig()
 	if err != nil {
 		panic(err)
 	}
 
-	cfg, err := config.NewConfig()
-	if err != nil {
-		log.Fatal("failed to load config", zap.Error(err))
-	}
+	log := buildLogger(cfg)
+	defer log.Sync()
 
 	log.Info("loaded config", zap.Any("config", cfg))
 
@@ -51,4 +54,29 @@ func run() {
 			run()
 		}
 	}()
+}
+
+func buildLogger(cfg *config.Config) *zap.Logger {
+	// Console core (always enabled)
+	consoleEncoderConfig := zap.NewDevelopmentEncoderConfig()
+	consoleEncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	consoleCore := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(consoleEncoderConfig),
+		zapcore.AddSync(os.Stdout),
+		zapcore.DebugLevel,
+	)
+
+	// If Loki is enabled, create a tee core
+	if cfg.Loki.Enabled && cfg.Loki.URL != "" {
+		fmt.Printf("[loki] enabled, URL: %s\n", cfg.Loki.URL)
+		lokiCore := loki.NewLokiCore(cfg.Loki.URL, map[string]string{
+			"service": "spotdl-wrapper",
+			"job":     "music-services",
+		}, zapcore.InfoLevel)
+
+		return zap.New(zapcore.NewTee(consoleCore, lokiCore))
+	}
+
+	fmt.Println("[loki] disabled (LOKI_ENABLED=false or LOKI_URL not set)")
+	return zap.New(consoleCore)
 }

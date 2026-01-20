@@ -2,4 +2,4 @@ build-linux:
 	GOOS=linux GOARCH=amd64 go build -o spotdl-wapper
 
 deploy:
-	scp spotdl-wapper root@music-services:/var/lib/docker/volumes/scripts/_data
+	scp spotdl-wapper root@music-services:/root/

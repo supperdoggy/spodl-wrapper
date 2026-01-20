@@ -141,10 +141,14 @@ func (d *db) UpdatePlaylistRequest(ctx context.Context, request models.PlaylistR
 
 func (d *db) UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error {
 	info, err := d.downloadQueueRequestCollection().UpdateOne(ctx, bson.M{"_id": request.ID}, bson.M{"$set": bson.M{
-		"active":      request.Active,
-		"sync_count":  request.SyncCount,
-		"errored":     request.Errored,
-		"retry_count": request.RetryCount,
+		"active":               request.Active,
+		"sync_count":           request.SyncCount,
+		"errored":              request.Errored,
+		"retry_count":          request.RetryCount,
+		"expected_track_count": request.ExpectedTrackCount,
+		"found_track_count":    request.FoundTrackCount,
+		"track_metadata":       request.TrackMetadata,
+		"updated_at":           request.UpdatedAt,
 	}})
 	if err != nil {
 		return err

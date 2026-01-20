@@ -7,8 +7,14 @@ type SpotifyConfig struct {
 	ClientSecret string `envconfig:"SPOTIFY_CLIENT_SECRET" required:"true"`
 }
 
+type LokiConfig struct {
+	Enabled bool   `envconfig:"LOKI_ENABLED" default:"false"`
+	URL     string `envconfig:"LOKI_URL"`
+}
+
 type Config struct {
 	Spotify SpotifyConfig
+	Loki    LokiConfig
 
 	DatabaseURL      string `envconfig:"DATABASE_URL" required:"true"`
 	DatabaseName     string `envconfig:"DATABASE_NAME" required:"true"`
