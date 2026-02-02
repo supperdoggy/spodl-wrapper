@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/supperdoggy/spot-models"
+	models "github.com/supperdoggy/spot-models"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/utils"
 	"github.com/zmb3/spotify/v2"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -116,7 +116,11 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 
 	foundMusicMap := make(map[string]models.MusicFile)
 	for _, music := range foundMusic {
-		key := music.Artist + " " + music.Title
+		// Normalize to lowercase for consistent matching
+		// Handle both single artist and comma-separated formats
+		normalizedArtist := strings.ToLower(music.Artist)
+		normalizedTitle := strings.ToLower(music.Title)
+		key := normalizedArtist + " " + normalizedTitle
 		foundMusicMap[key] = music
 	}
 
@@ -138,14 +142,35 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 
 		key := artist + " " + songName
 
-		if _, ok := foundMusicMap[key]; !ok {
-			s.log.Error("song not found in indexed paths", zap.Any("artist", artist), zap.Any("songName", songName))
+		// Also try with single artist format (first artist) in case database stores it that way
+		var singleArtistKey string
+		if len(artists) > 0 {
+			singleArtistKey = artists[0] + " " + songName
+		}
+
+		var foundFile models.MusicFile
+		var found bool
+
+		// Try comma-separated artist format first
+		if file, ok := foundMusicMap[key]; ok {
+			foundFile = file
+			found = true
+		} else if singleArtistKey != "" {
+			// Try single artist format (database might store only first artist)
+			if file, ok := foundMusicMap[singleArtistKey]; ok {
+				foundFile = file
+				found = true
+			}
+		}
+
+		if !found {
+			s.log.Error("song not found in indexed paths", zap.Any("artist", artist), zap.Any("songName", songName), zap.Any("singleArtist", singleArtistKey))
 			missingMusicFiles = append(missingMusicFiles, song)
 			// return errors.New("song not found in indexed paths")
 			continue
 		}
 
-		indexedPaths = append(indexedPaths, foundMusicMap[key].Path)
+		indexedPaths = append(indexedPaths, foundFile.Path)
 	}
 
 	// if we tried to download the playlist but it failed then whatever
@@ -157,7 +182,14 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 		}
 
 		if !alreadySynced {
-			if err := s.database.NewDownloadRequest(ctx, playlist.SpotifyURL, playlistName, 0); err != nil {
+			// Get object type for the playlist URL
+			objectType, err := s.spotifyService.GetObjectType(ctx, playlist.SpotifyURL)
+			if err != nil {
+				s.log.Error("failed to get object type for playlist", zap.Error(err))
+				// Continue with empty object type - will be fetched later
+				objectType = ""
+			}
+			if err := s.database.NewDownloadRequest(ctx, playlist.SpotifyURL, playlistName, 0, objectType); err != nil {
 				s.log.Error("failed to add download request", zap.Error(err))
 			}
 			return ErrMissingFiles

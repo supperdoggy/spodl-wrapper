@@ -3,10 +3,12 @@ package db
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 
 	"github.com/gofrs/uuid"
 	models "github.com/supperdoggy/spot-models"
+	"github.com/supperdoggy/spot-models/spotify"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -17,7 +19,7 @@ type Database interface {
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
 	GetActiveRequest(ctx context.Context, url string) (models.DownloadQueueRequest, error)
 	CheckIfRequestAlreadySynced(ctx context.Context, url string) (bool, error)
-	NewDownloadRequest(ctx context.Context, url, name string, creatorID int64) error
+	NewDownloadRequest(ctx context.Context, url, name string, creatorID int64, objectType spotify.SpotifyObjectType) error
 	UpdateActiveRequest(ctx context.Context, request models.DownloadQueueRequest) error
 
 	GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error)
@@ -53,7 +55,7 @@ func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Data
 	}, nil
 }
 
-func (d *db) NewDownloadRequest(ctx context.Context, url, name string, creatorID int64) error {
+func (d *db) NewDownloadRequest(ctx context.Context, url, name string, creatorID int64, objectType spotify.SpotifyObjectType) error {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return err
@@ -61,6 +63,7 @@ func (d *db) NewDownloadRequest(ctx context.Context, url, name string, creatorID
 
 	request := models.DownloadQueueRequest{
 		SpotifyURL: url,
+		ObjectType: objectType,
 		Name:       name,
 		Active:     true,
 		ID:         id.String(),
@@ -148,6 +151,7 @@ func (d *db) UpdateActiveRequest(ctx context.Context, request models.DownloadQue
 		"expected_track_count": request.ExpectedTrackCount,
 		"found_track_count":    request.FoundTrackCount,
 		"track_metadata":       request.TrackMetadata,
+		"object_type":          request.ObjectType,
 		"updated_at":           request.UpdatedAt,
 	}})
 	if err != nil {
@@ -239,12 +243,25 @@ func (d *db) musicFilesCollection() *mongo.Collection {
 
 	return d.conn.Database(d.dbname).Collection("music-files")
 }
+
+// escapeRegex escapes special regex characters in a string
+func escapeRegex(s string) string {
+	return regexp.QuoteMeta(s)
+}
+
 func (d *db) FindMusicFiles(ctx context.Context, artists, titles []string) ([]models.MusicFile, error) {
 	orPairs := make([]bson.M, 0, len(artists))
 	for i := range artists {
+		// Use case-insensitive regex matching for both artist and title
+		// This handles cases where database stores original case but we query with lowercase
+		// Escape special regex characters to ensure exact matching
+		escapedArtist := escapeRegex(artists[i])
+		escapedTitle := escapeRegex(titles[i])
 		orPairs = append(orPairs, bson.M{
-			"artist": artists[i],
-			"title":  titles[i],
+			"$and": []bson.M{
+				{"artist": bson.M{"$regex": "^" + escapedArtist + "$", "$options": "i"}},
+				{"title": bson.M{"$regex": "^" + escapedTitle + "$", "$options": "i"}},
+			},
 		})
 	}
 
