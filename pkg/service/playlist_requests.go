@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
-	models "github.com/supperdoggy/spot-models"
 	"github.com/supperdoggy/SmartHomeServer/music-services/spotdl-wapper/pkg/utils"
+	models "github.com/supperdoggy/spot-models"
+	"github.com/supperdoggy/spot-models/spotify"
 	"github.com/zmb3/spotify/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -176,27 +178,52 @@ func (s *service) ProcessPlaylist(ctx context.Context, playlist models.PlaylistR
 	// if we tried to download the playlist but it failed then whatever
 	if len(missingMusicFiles) > 0 && !playlist.NoPull {
 		s.log.Error("missing music files", zap.Any("missingMusicFiles", missingMusicFiles))
-		alreadySynced, err := s.database.CheckIfRequestAlreadySynced(ctx, playlist.SpotifyURL)
-		if err != nil {
-			s.log.Error("failed to check if request already synced", zap.Error(err))
+
+		// Create individual download requests for each missing track
+		createdCount := 0
+		for _, missingItem := range missingMusicFiles {
+			if missingItem.Track.Track == nil {
+				continue
+			}
+
+			// Build track URL
+			trackURL := fmt.Sprintf("https://open.spotify.com/track/%s", missingItem.Track.Track.ID)
+
+			// Check if this specific track is already being downloaded or was downloaded
+			alreadySynced, err := s.database.CheckIfRequestAlreadySynced(ctx, trackURL)
+			if err != nil {
+				s.log.Error("failed to check if track request already synced", zap.Error(err), zap.String("track_url", trackURL))
+				continue
+			}
+
+			if alreadySynced {
+				s.log.Info("skipping already synced track", zap.String("track_url", trackURL))
+				continue
+			}
+
+			// Build track name
+			artists := []string{}
+			for _, artist := range missingItem.Track.Track.Artists {
+				artists = append(artists, artist.Name)
+			}
+			trackName := fmt.Sprintf("%s - %s", strings.Join(artists, ", "), missingItem.Track.Track.Name)
+
+			// Create download request for individual track
+			objectType := spotify.SpotifyObjectTypeTrack
+			if err := s.database.NewDownloadRequest(ctx, trackURL, trackName, 0, objectType); err != nil {
+				s.log.Error("failed to add download request for track", zap.Error(err), zap.String("track_url", trackURL))
+			} else {
+				createdCount++
+				s.log.Info("created download request for missing track", zap.String("track_url", trackURL), zap.String("track_name", trackName))
+			}
 		}
 
-		if !alreadySynced {
-			// Get object type for the playlist URL
-			objectType, err := s.spotifyService.GetObjectType(ctx, playlist.SpotifyURL)
-			if err != nil {
-				s.log.Error("failed to get object type for playlist", zap.Error(err))
-				// Continue with empty object type - will be fetched later
-				objectType = ""
-			}
-			if err := s.database.NewDownloadRequest(ctx, playlist.SpotifyURL, playlistName, 0, objectType); err != nil {
-				s.log.Error("failed to add download request", zap.Error(err))
-			}
+		if createdCount > 0 {
+			s.log.Info("created download requests for missing tracks", zap.Int("count", createdCount), zap.Int("total_missing", len(missingMusicFiles)))
 			return ErrMissingFiles
 		} else {
-			s.log.Info("skipping already synced song", zap.Any("song", missingMusicFiles))
+			s.log.Info("all missing tracks already synced or failed to create requests", zap.Int("total_missing", len(missingMusicFiles)))
 		}
-
 	}
 
 	for i, path := range indexedPaths {
